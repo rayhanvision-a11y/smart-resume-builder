@@ -1061,45 +1061,56 @@ input[type="color"]::-webkit-color-swatch {
    PRINT STYLES FOR EXACT A4 PDF OUTPUT
    ========================================================================== */
 @media print {
-    body {
+    html, body {
         background: #ffffff !important;
         color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
     }
     
     .app-header,
     .sidebar-tabs,
     .editor-pane,
-    .preview-toolbar {
+    .preview-toolbar,
+    .doc-switcher {
         display: none !important;
     }
 
-    .app-container {
-        height: auto !important;
-        overflow: visible !important;
-    }
-
-    .preview-pane {
-        background: none !important;
-        padding: 0 !important;
-    }
-
+    .app-container,
+    .preview-pane,
     .paper-wrapper {
+        display: block !important;
+        position: static !important;
+        width: 100% !important;
+        height: auto !important;
+        margin: 0 !important;
         padding: 0 !important;
-        background: none !important;
         overflow: visible !important;
+        background: #ffffff !important;
     }
 
     .resume-paper {
         box-shadow: none !important;
+        border: none !important;
         width: 100% !important;
+        max-width: 100% !important;
         min-height: auto !important;
         padding: 0 !important;
         margin: 0 !important;
-        transform: scale(1) !important;
+        transform: none !important;
+        background: #ffffff !important;
+    }
+
+    .resume-paper[style*="display: none"],
+    #resume-canvas[style*="display: none"],
+    #cover-letter-canvas[style*="display: none"] {
+        display: none !important;
     }
 
     @page {
-        size: A4;
+        size: A4 portrait;
         margin: 12mm 15mm;
     }
 }

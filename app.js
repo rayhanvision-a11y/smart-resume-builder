@@ -490,7 +490,21 @@ function initEventListeners() {
 
     // Export PDF (Print)
     document.getElementById('btn-export-pdf').addEventListener('click', () => {
+        const rCanvas = document.getElementById('resume-canvas');
+        const cCanvas = document.getElementById('cover-letter-canvas');
+        const oldRTransform = rCanvas ? rCanvas.style.transform : '';
+        const oldCTransform = cCanvas ? cCanvas.style.transform : '';
+
+        if (rCanvas) rCanvas.style.transform = 'none';
+        if (cCanvas) cCanvas.style.transform = 'none';
+
         window.print();
+
+        setTimeout(() => {
+            if (rCanvas) rCanvas.style.transform = oldRTransform;
+            if (cCanvas) cCanvas.style.transform = oldCTransform;
+            applyZoom();
+        }, 300);
     });
 
     // Preview Zoom Controls
