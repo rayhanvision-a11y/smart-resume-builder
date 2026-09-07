@@ -467,7 +467,7 @@ function initEventListeners() {
         downloadAnchor.remove();
     });
 
-    // Import JSON
+    // Import JSON Data
     document.getElementById('input-import-json').addEventListener('change', (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -487,6 +487,51 @@ function initEventListeners() {
             reader.readAsText(file);
         }
     });
+
+    // Import & Auto-Parse Uploaded PDF Resume (pdf.js)
+    const pdfImportInput = document.getElementById('input-import-pdf');
+    if (pdfImportInput) {
+        pdfImportInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    if (typeof pdfjsLib !== 'undefined') {
+                        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                        let extractedText = '';
+
+                        for (let i = 1; i <= pdf.numPages; i++) {
+                            const page = await pdf.getPage(i);
+                            const textContent = await page.getTextContent();
+                            const pageText = textContent.items.map(item => item.str).join(' ');
+                            extractedText += pageText + '\n';
+                        }
+
+                        // Auto-extract Email & Phone via Regex
+                        const emailMatch = extractedText.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/);
+                        const phoneMatch = extractedText.match(/[\+\(]?[0-9][0-9\-\s\(\)]{8,}[0-9]/);
+
+                        if (emailMatch) state.personalInfo.email = emailMatch[0];
+                        if (phoneMatch) state.personalInfo.phone = phoneMatch[0].trim();
+
+                        // Set extracted text as summary intro if present
+                        state.personalInfo.summary = extractedText.slice(0, 500) + '...';
+
+                        populateFormFromState();
+                        saveStateAndRender();
+                        updateATSAnalysis();
+                        alert("PDF Resume uploaded and parsed successfully! Information extracted to editor fields.");
+                    } else {
+                        alert("PDF parser library loading, please try again.");
+                    }
+                } catch (err) {
+                    console.error("PDF parse error:", err);
+                    alert("Unable to parse text from this PDF file. Please ensure it contains selectable text.");
+                }
+            }
+        });
+    }
 
     // Print Button Handler
     const printBtn = document.getElementById('btn-print');
