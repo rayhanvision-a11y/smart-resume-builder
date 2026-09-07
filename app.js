@@ -1304,6 +1304,14 @@ function initRecruiterPortal() {
         });
     }
 
+    // Export PDF Button
+    const btnExportPDF = document.getElementById('btn-export-recruiter-pdf');
+    if (btnExportPDF) {
+        btnExportPDF.addEventListener('click', () => {
+            exportRecruiterPDFReport();
+        });
+    }
+
     // Modal Close Button
     if (btnCloseModal) {
         btnCloseModal.addEventListener('click', () => {
@@ -1674,4 +1682,134 @@ function exportRecruiterCSVReport() {
     link.click();
     document.body.removeChild(link);
 }
+
+// --- Export Recruitment Report (PDF via html2pdf.js) ---
+function exportRecruiterPDFReport() {
+    if (recruiterState.candidates.length === 0) {
+        alert("No candidates available to export. Please upload CVs or load demo candidates first.");
+        return;
+    }
+
+    const jdText = document.getElementById('recruiterJD') ? document.getElementById('recruiterJD').value.trim() : 'General Position';
+    const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Create a print-ready off-screen HTML element
+    const container = document.createElement('div');
+    container.className = 'pdf-report-container';
+    container.style.padding = '24px';
+    container.style.background = '#ffffff';
+    container.style.color = '#0f172a';
+    container.style.fontFamily = "'Inter', sans-serif";
+
+    const totalCount = recruiterState.candidates.length;
+    const qualifiedCount = recruiterState.candidates.filter(c => c.score >= 70).length;
+    const avgScore = totalCount > 0 ? Math.round(recruiterState.candidates.reduce((acc, c) => acc + c.score, 0) / totalCount) : 0;
+
+    let rowsHtml = '';
+    recruiterState.candidates.forEach((cand, idx) => {
+        const rank = idx + 1;
+        const statusText = cand.score >= 75 ? "Top Match" : (cand.score >= 50 ? "Potential" : "Low Match");
+        const statusColor = cand.score >= 75 ? "#10b981" : (cand.score >= 50 ? "#f59e0b" : "#ef4444");
+
+        rowsHtml += `
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+                <td style="padding: 10px; font-weight: bold; text-align: center;">#${rank}</td>
+                <td style="padding: 10px;">
+                    <strong style="color: #0f172a;">${escapeHtml(cand.name)}</strong><br>
+                    <span style="font-size: 11px; color: #64748b;">${escapeHtml(cand.fileName || 'CV.pdf')}</span>
+                </td>
+                <td style="padding: 10px; font-size: 12px; color: #334155;">
+                    ${escapeHtml(cand.email)}<br>${escapeHtml(cand.phone)}
+                </td>
+                <td style="padding: 10px; font-weight: bold; font-size: 14px; color: ${statusColor}; text-align: center;">
+                    ${cand.score}%
+                </td>
+                <td style="padding: 10px; text-align: center;">
+                    <span style="background: ${statusColor}22; color: ${statusColor}; border: 1px solid ${statusColor}; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: bold;">
+                        ${statusText}
+                    </span>
+                </td>
+                <td style="padding: 10px; font-size: 11px; color: #475569;">
+                    <strong>Matched:</strong> ${escapeHtml(cand.matchedSkills.slice(0, 5).join(', ')) || 'N/A'}<br>
+                    <strong>Missing:</strong> ${escapeHtml(cand.missingSkills.slice(0, 5).join(', ')) || 'None'}
+                </td>
+            </tr>
+        `;
+    });
+
+    container.innerHTML = `
+        <div style="border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1 style="margin:0; font-size: 22px; color: #1e293b;">SmartResume<span style="color:#3b82f6;">.ats</span> Candidate Recruitment Report</h1>
+                    <p style="margin: 4px 0 0 0; font-size: 12px; color: #64748b;">Automated ATS Candidate Evaluation & Ranking Summary</p>
+                </div>
+                <div style="text-align: right; font-size: 12px; color: #64748b;">
+                    <strong>Date:</strong> ${dateStr}
+                </div>
+            </div>
+        </div>
+
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; margin-bottom: 20px; font-size: 12px;">
+            <strong style="color: #1e293b; display: block; margin-bottom: 6px;">Job Description / Requirements Target:</strong>
+            <p style="margin:0; color: #475569; max-height: 60px; overflow: hidden;">${escapeHtml(jdText.slice(0, 300))}${jdText.length > 300 ? '...' : ''}</p>
+        </div>
+
+        <div style="display: flex; gap: 16px; margin-bottom: 20px; text-align: center;">
+            <div style="flex:1; background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:10px;">
+                <span style="font-size: 20px; font-weight: 800; color: #1d4ed8; display:block;">${totalCount}</span>
+                <span style="font-size: 11px; color: #1e40af;">Total Candidates Processed</span>
+            </div>
+            <div style="flex:1; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:8px; padding:10px;">
+                <span style="font-size: 20px; font-weight: 800; color: #047857; display:block;">${qualifiedCount}</span>
+                <span style="font-size: 11px; color: #065f46;">Top Qualified (≥70%)</span>
+            </div>
+            <div style="flex:1; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:10px;">
+                <span style="font-size: 20px; font-weight: 800; color: #b45309; display:block;">${avgScore}%</span>
+                <span style="font-size: 11px; color: #92400e;">Average ATS Match Score</span>
+            </div>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+            <thead>
+                <tr style="background: #f1f5f9; color: #475569; font-size: 12px;">
+                    <th style="padding: 8px; border-bottom: 2px solid #cbd5e1; text-align: center;">Rank</th>
+                    <th style="padding: 8px; border-bottom: 2px solid #cbd5e1; text-align: left;">Candidate Name</th>
+                    <th style="padding: 8px; border-bottom: 2px solid #cbd5e1; text-align: left;">Contact Details</th>
+                    <th style="padding: 8px; border-bottom: 2px solid #cbd5e1; text-align: center;">ATS Score</th>
+                    <th style="padding: 8px; border-bottom: 2px solid #cbd5e1; text-align: center;">Status</th>
+                    <th style="padding: 8px; border-bottom: 2px solid #cbd5e1; text-align: left;">Key Skills Breakdown</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${rowsHtml}
+            </tbody>
+        </table>
+    `;
+
+    document.body.appendChild(container);
+
+    const options = {
+        margin: [10, 10, 10, 10],
+        filename: `Candidate_Recruitment_Report_${new Date().toISOString().slice(0,10)}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+
+    if (typeof html2pdf !== 'undefined') {
+        html2pdf().set(options).from(container).save().then(() => {
+            document.body.removeChild(container);
+        }).catch(err => {
+            console.error("PDF Export error:", err);
+            document.body.removeChild(container);
+            alert("Could not generate PDF directly. Printing window will open.");
+            window.print();
+        });
+    } else {
+        window.print();
+        document.body.removeChild(container);
+    }
+}
+
 
