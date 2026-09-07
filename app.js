@@ -77,6 +77,14 @@ const sampleResumeData = {
             year: "2022"
         }
     ],
+    coverLetter: {
+        recipient: "Hiring Manager",
+        company: "TechNova Solutions Inc.",
+        salutation: "Dear Hiring Manager at TechNova Solutions,",
+        opening: "I am writing to express my enthusiastic interest in the Senior Full Stack Engineer role at TechNova Solutions Inc. With over 5 years of experience architecting high-performance web applications and cloud infrastructure, I am eager to bring my expertise in React, Node.js, and system scalability to your engineering team.",
+        body: "In my previous position as Senior Full Stack Developer, I successfully architected microservices serving over 500,000 active monthly users and optimized web applications to reduce query latency by 45%. My background in establishing CI/CD pipelines, mentoring engineers, and executing clean code practices aligns directly with TechNova's vision for technical excellence.",
+        closing: "Thank you for reviewing my application. I welcome the opportunity to discuss how my skill set and technical background can drive immediate value for TechNova Solutions. I am available for an interview at your earliest convenience."
+    },
     settings: {
         template: "template-modern",
         color: "#3b82f6",
@@ -158,6 +166,15 @@ function populateFormFromState() {
         if (editorPhotoPlaceholder) editorPhotoPlaceholder.style.display = 'block';
     }
 
+    // Cover Letter
+    if (!state.coverLetter) state.coverLetter = JSON.parse(JSON.stringify(sampleResumeData.coverLetter));
+    document.getElementById('clRecipient').value = state.coverLetter.recipient || '';
+    document.getElementById('clCompany').value = state.coverLetter.company || '';
+    document.getElementById('clSalutation').value = state.coverLetter.salutation || '';
+    document.getElementById('clOpening').value = state.coverLetter.opening || '';
+    document.getElementById('clBody').value = state.coverLetter.body || '';
+    document.getElementById('clClosing').value = state.coverLetter.closing || '';
+
     // Skills
     document.getElementById('skillsTechnical').value = state.skills.technical || '';
     document.getElementById('skillsSoft').value = state.skills.soft || '';
@@ -222,6 +239,49 @@ function initEventListeners() {
     bindInput('skillsTechnical', 'skills', 'technical');
     bindInput('skillsSoft', 'skills', 'soft');
     bindInput('skillsTools', 'skills', 'tools');
+
+    // Cover Letter Bindings
+    bindInput('clRecipient', 'coverLetter', 'recipient');
+    bindInput('clCompany', 'coverLetter', 'company');
+    bindInput('clSalutation', 'coverLetter', 'salutation');
+    bindInput('clOpening', 'coverLetter', 'opening');
+    bindInput('clBody', 'coverLetter', 'body');
+    bindInput('clClosing', 'coverLetter', 'closing');
+
+    // AI Cover Letter Draft Generator Button
+    document.getElementById('btn-generate-cl-ai').addEventListener('click', () => {
+        generateAICoverLetter();
+    });
+
+    // Action Chips Click Handler (Copy/Insert Verb)
+    document.querySelectorAll('.action-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const verb = chip.textContent;
+            navigator.clipboard.writeText(verb);
+            alert(`Copied action verb "${verb}" to clipboard! Paste it into your bullet points.`);
+        });
+    });
+
+    // Document Switcher Toolbar (Resume vs Cover Letter Canvas)
+    const btnDocResume = document.getElementById('doc-btn-resume');
+    const btnDocCover = document.getElementById('doc-btn-cover');
+    const resumeCanvas = document.getElementById('resume-canvas');
+    const coverCanvas = document.getElementById('cover-letter-canvas');
+
+    btnDocResume.addEventListener('click', () => {
+        btnDocResume.classList.add('active');
+        btnDocCover.classList.remove('active');
+        resumeCanvas.style.display = 'block';
+        coverCanvas.style.display = 'none';
+    });
+
+    btnDocCover.addEventListener('click', () => {
+        btnDocCover.classList.add('active');
+        btnDocResume.classList.remove('active');
+        resumeCanvas.style.display = 'none';
+        coverCanvas.style.display = 'block';
+        renderCoverLetterPreview();
+    });
 
     // Photo Controls Listeners
     const photoInput = document.getElementById('photoInput');
@@ -806,6 +866,74 @@ function renderResumePreview() {
 function saveStateAndRender() {
     localStorage.setItem('smart_resume_data', JSON.stringify(state));
     renderResumePreview();
+    renderCoverLetterPreview();
+}
+
+// --- Live Cover Letter Canvas Rendering ---
+function renderCoverLetterPreview() {
+    const canvas = document.getElementById('cover-letter-canvas');
+    if (!canvas) return;
+
+    canvas.className = `resume-paper ${state.settings.template}`;
+    canvas.style.setProperty('--accent-color', state.settings.color || '#3b82f6');
+    canvas.style.setProperty('--resume-font', state.settings.font || "'Inter', sans-serif");
+    canvas.style.setProperty('--resume-base-size', state.settings.fontSize || "14px");
+
+    document.getElementById('cl-pv-name').textContent = state.personalInfo.fullName || 'Your Full Name';
+    document.getElementById('cl-pv-title').textContent = state.personalInfo.jobTitle || 'Target Job Title';
+    document.getElementById('cl-pv-sign-name').textContent = state.personalInfo.fullName || 'Your Full Name';
+
+    const contactContainer = document.getElementById('cl-pv-contact');
+    contactContainer.innerHTML = '';
+    const contacts = [
+        { icon: 'fa-envelope', val: state.personalInfo.email },
+        { icon: 'fa-phone', val: state.personalInfo.phone },
+        { icon: 'fa-location-dot', val: state.personalInfo.location }
+    ];
+
+    contacts.forEach(c => {
+        if (c.val && c.val.trim() !== '') {
+            const span = document.createElement('span');
+            span.className = 'contact-item';
+            span.innerHTML = `<i class="fa-solid ${c.icon}"></i> ${c.val}`;
+            contactContainer.appendChild(span);
+        }
+    });
+
+    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('cl-pv-date').textContent = `Date: ${new Date().toLocaleDateString('en-US', options)}`;
+
+    document.getElementById('cl-pv-rec-name').textContent = state.coverLetter.recipient || 'Hiring Manager';
+    document.getElementById('cl-pv-rec-company').textContent = state.coverLetter.company || 'Target Company';
+    document.getElementById('cl-pv-salutation').textContent = state.coverLetter.salutation || 'Dear Hiring Team,';
+
+    document.getElementById('cl-pv-opening').textContent = state.coverLetter.opening || '';
+    document.getElementById('cl-pv-body').textContent = state.coverLetter.body || '';
+    document.getElementById('cl-pv-closing').textContent = state.coverLetter.closing || '';
+}
+
+// --- AI Cover Letter Generator ---
+function generateAICoverLetter() {
+    const name = state.personalInfo.fullName || 'Candidate';
+    const role = state.personalInfo.jobTitle || 'Software Engineer';
+    const company = state.coverLetter.company || 'TechNova Solutions';
+    const recipient = state.coverLetter.recipient || 'Hiring Manager';
+    const skills = state.skills.technical || 'JavaScript, React, Node.js, System Architecture';
+
+    state.coverLetter.salutation = `Dear ${recipient} at ${company},`;
+    state.coverLetter.opening = `I am writing to express my enthusiastic interest in the ${role} position at ${company}. Having followed your team's innovative work, I am eager to bring my expertise in ${skills} and track record of delivering high-impact solutions to your engineering team.`;
+    state.coverLetter.body = `Throughout my career, I have specialized in building scalable, reliable applications and optimizing technical performance. My background in technical leadership, clean code principles, and cross-functional team collaboration directly aligns with ${company}'s commitment to engineering excellence.`;
+    state.coverLetter.closing = `Thank you for taking the time to review my application. I welcome the opportunity to discuss how my skill set and technical background can drive immediate results for ${company}. I look forward to connecting with you soon.`;
+
+    document.getElementById('clSalutation').value = state.coverLetter.salutation;
+    document.getElementById('clOpening').value = state.coverLetter.opening;
+    document.getElementById('clBody').value = state.coverLetter.body;
+    document.getElementById('clClosing').value = state.coverLetter.closing;
+
+    saveStateAndRender();
+    
+    // Switch preview to cover letter
+    document.getElementById('doc-btn-cover').click();
 }
 
 // --- ATS KEYWORD MATCHING & SCORING ALGORITHM ---

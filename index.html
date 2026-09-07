@@ -62,6 +62,10 @@
                 <i class="fa-solid fa-palette"></i>
                 <span>Styling</span>
             </button>
+            <button class="tab-btn" data-tab="cover-letter-tab">
+                <i class="fa-solid fa-envelope-open-text"></i>
+                <span>Cover Letter</span>
+            </button>
             <button class="tab-btn" data-tab="ats-tab">
                 <i class="fa-solid fa-chart-pie"></i>
                 <span>ATS Checker</span>
@@ -158,6 +162,19 @@
                         <i class="fa-solid fa-chevron-down toggle-icon"></i>
                     </div>
                     <div class="accordion-body">
+                        <div class="action-verb-helper">
+                            <label><i class="fa-solid fa-bolt color-warning"></i> AI Action Verb Helper (Click verb to copy)</label>
+                            <div class="action-chips">
+                                <span class="action-chip">Architected</span>
+                                <span class="action-chip">Spearheaded</span>
+                                <span class="action-chip">Optimized</span>
+                                <span class="action-chip">Streamlined</span>
+                                <span class="action-chip">Automated</span>
+                                <span class="action-chip">Engineered</span>
+                                <span class="action-chip">Accelerated</span>
+                                <span class="action-chip">Quantified</span>
+                            </div>
+                        </div>
                         <div id="experience-list" class="dynamic-list"></div>
                         <button id="add-experience-btn" class="btn btn-secondary full-width margin-top">
                             <i class="fa-solid fa-plus"></i> Add Work Experience
@@ -304,6 +321,44 @@
                         </div>
                     </div>
                 </div>
+            <!-- TAB: COVER LETTER EDITOR -->
+            <div id="cover-letter-tab" class="tab-content">
+                <div class="section-card">
+                    <div class="card-header-flex">
+                        <h3><i class="fa-solid fa-envelope-open-text color-blue"></i> Cover Letter Builder</h3>
+                        <button id="btn-generate-cl-ai" class="btn btn-primary btn-glow">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Draft with AI
+                        </button>
+                    </div>
+                    <p class="section-desc">Generate a personalized cover letter matching your resume theme and targeted job application.</p>
+                    
+                    <div class="form-grid margin-top">
+                        <div class="form-group">
+                            <label for="clRecipient">Hiring Manager / Recipient</label>
+                            <input type="text" id="clRecipient" placeholder="e.g. Hiring Manager / John Smith">
+                        </div>
+                        <div class="form-group">
+                            <label for="clCompany">Target Company Name</label>
+                            <input type="text" id="clCompany" placeholder="e.g. TechNova Solutions Inc.">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="clSalutation">Salutation Line</label>
+                            <input type="text" id="clSalutation" placeholder="e.g. Dear Hiring Team at TechNova,">
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="clOpening">Opening Paragraph</label>
+                            <textarea id="clOpening" rows="3" placeholder="State the position you are applying for and your enthusiasm for joining the team..."></textarea>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="clBody">Core Qualifications & Value Proposition</label>
+                            <textarea id="clBody" rows="5" placeholder="Highlight key achievements, technical expertise, and how your experience aligns with their goals..."></textarea>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="clClosing">Closing & Call to Action</label>
+                            <textarea id="clClosing" rows="3" placeholder="Thank the recruiter, request an interview opportunity, and offer contact availability..."></textarea>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- TAB 3: ATS SCORE & OPTIMIZER -->
@@ -356,7 +411,10 @@
         <section class="preview-pane">
             <div class="preview-toolbar">
                 <div class="toolbar-info">
-                    <span><i class="fa-solid fa-eye"></i> Live A4 Print Preview</span>
+                    <div class="doc-switcher">
+                        <button id="doc-btn-resume" class="doc-tab-btn active"><i class="fa-solid fa-file-contract"></i> Resume</button>
+                        <button id="doc-btn-cover" class="doc-tab-btn"><i class="fa-solid fa-envelope-open-text"></i> Cover Letter</button>
+                    </div>
                 </div>
                 <div class="toolbar-actions">
                     <button id="zoom-out-btn" class="btn-icon" title="Zoom Out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
@@ -422,6 +480,39 @@
                     </section>
 
                 </div>
+
+                <!-- Printable A4 Cover Letter Canvas -->
+                <div id="cover-letter-canvas" class="resume-paper template-modern" style="display:none;">
+                    <header class="resume-header">
+                        <div class="header-flex">
+                            <div class="header-main-info">
+                                <h1 id="cl-pv-name">Your Full Name</h1>
+                                <h2 id="cl-pv-title">Target Job Title</h2>
+                                <div class="contact-line" id="cl-pv-contact"></div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <div class="cl-paper-body">
+                        <div class="cl-date" id="cl-pv-date">Date: September 7, 2026</div>
+                        <div class="cl-recipient-block" id="cl-pv-recipient">
+                            <strong id="cl-pv-rec-name">Hiring Manager</strong><br>
+                            <span id="cl-pv-rec-company">Target Company</span>
+                        </div>
+                        
+                        <div class="cl-salutation" id="cl-pv-salutation">Dear Hiring Manager,</div>
+
+                        <div class="cl-paragraph" id="cl-pv-opening"></div>
+                        <div class="cl-paragraph" id="cl-pv-body"></div>
+                        <div class="cl-paragraph" id="cl-pv-closing"></div>
+
+                        <div class="cl-signoff">
+                            Sincerely,<br>
+                            <strong id="cl-pv-sign-name">Your Full Name</strong>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </section>
 

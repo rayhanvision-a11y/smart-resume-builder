@@ -14,6 +14,8 @@ Built for developers, job seekers, and students who want to build ATS-optimized 
 ## ✨ Features
 
 - ⚡ **Live Dual-Pane Editor**: Edit fields on the left and see real-time, pixel-perfect A4 resume updates on the right.
+- ✉️ **Cover Letter Builder & AI Auto-Draft**: Generate matching, professional cover letters with 1-click **AI Auto-Drafting** aligned with your job title and target company.
+- ⚡ **AI High-Impact Action Verb Helper**: Clickable action verb chips (*Architected, Spearheaded, Optimized, Automated, Quantified*) for experience bullet points.
 - 📸 **Profile Photo Support & Custom Shapes**: Upload an optional profile photo with custom shape options (**Circle**, **Rounded**, **Square**) and sizing controls (**Small 64px**, **Medium 80px**, **Large 96px**).
 - 🎨 **Quick Color Theme Swatches & Presets**: Select from 8 vibrant instant theme presets (Ocean Blue, Emerald, Royal Purple, Crimson Red, Sunset Orange, Slate, Sky Blue, Teal) or pick a custom accent color HEX code.
 - 🎯 **ATS Keyword Matching Engine**: Paste any target job description (JD) to get an immediate **Match Score (%)**, a breakdown of **Matched vs. Missing High-Impact Keywords**, and actionable formatting feedback.
