@@ -102,6 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initTabs();
     initAccordions();
     initEventListeners();
+    initModeSwitcher();
+    initRecruiterPortal();
     populateFormFromState();
     renderResumePreview();
     updateATSAnalysis();
@@ -1181,3 +1183,484 @@ function downloadDirectPDF() {
         applyZoom();
     }
 }
+
+// ==========================================================================
+// COMPANY ATS CANDIDATE SCREENER LOGIC
+// ==========================================================================
+
+let recruiterState = {
+    candidates: [],
+    minScoreFilter: 0
+};
+
+// --- Mode Switcher ---
+function initModeSwitcher() {
+    const modeBuilderBtn = document.getElementById('mode-builder');
+    const modeScreenerBtn = document.getElementById('mode-screener');
+    const appContainer = document.querySelector('.app-container');
+    const recruiterWorkspace = document.getElementById('recruiter-workspace');
+
+    if (modeBuilderBtn && modeScreenerBtn) {
+        modeBuilderBtn.addEventListener('click', () => {
+            modeBuilderBtn.classList.add('active');
+            modeScreenerBtn.classList.remove('active');
+            if (appContainer) appContainer.style.display = 'flex';
+            if (recruiterWorkspace) recruiterWorkspace.style.display = 'none';
+        });
+
+        modeScreenerBtn.addEventListener('click', () => {
+            modeScreenerBtn.classList.add('active');
+            modeBuilderBtn.classList.remove('active');
+            if (appContainer) appContainer.style.display = 'none';
+            if (recruiterWorkspace) recruiterWorkspace.style.display = 'block';
+        });
+    }
+}
+
+// --- Initialize Recruiter Portal Listeners ---
+function initRecruiterPortal() {
+    const jdInput = document.getElementById('recruiterJD');
+    const bulkPdfInput = document.getElementById('bulkPdfInput');
+    const dropzone = document.getElementById('bulkUploadDropzone');
+    const minScoreSlider = document.getElementById('minScoreFilter');
+    const btnLoadDemo = document.getElementById('btn-load-recruiter-demo');
+    const btnExportCSV = document.getElementById('btn-export-recruiter-csv');
+    const btnCloseModal = document.getElementById('btnCloseModal');
+
+    // JD text change re-computes matches
+    if (jdInput) {
+        jdInput.addEventListener('input', () => {
+            recalculateRecruiterMatches();
+        });
+    }
+
+    // Min score slider
+    if (minScoreSlider) {
+        minScoreSlider.addEventListener('input', (e) => {
+            recruiterState.minScoreFilter = parseInt(e.target.value) || 0;
+            const minScoreVal = document.getElementById('minScoreVal');
+            if (minScoreVal) minScoreVal.textContent = recruiterState.minScoreFilter + '%';
+            renderRecruiterLeaderboard();
+        });
+    }
+
+    // Bulk PDF Upload File Input
+    if (bulkPdfInput) {
+        bulkPdfInput.addEventListener('change', async (e) => {
+            if (e.target.files && e.target.files.length > 0) {
+                await processBulkPdfFiles(e.target.files);
+                e.target.value = '';
+            }
+        });
+    }
+
+    // Drag & Drop Dropzone
+    if (dropzone) {
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+            }, false);
+        });
+
+        dropzone.addEventListener('drop', async (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                await processBulkPdfFiles(files);
+            }
+        });
+    }
+
+    // Load Demo Candidates Button
+    if (btnLoadDemo) {
+        btnLoadDemo.addEventListener('click', () => {
+            loadDemoRecruiterCandidates();
+        });
+    }
+
+    // Export CSV Button
+    if (btnExportCSV) {
+        btnExportCSV.addEventListener('click', () => {
+            exportRecruiterCSVReport();
+        });
+    }
+
+    // Modal Close Button
+    if (btnCloseModal) {
+        btnCloseModal.addEventListener('click', () => {
+            const modal = document.getElementById('candidateModal');
+            if (modal) modal.style.display = 'none';
+        });
+    }
+}
+
+// --- Process Bulk Uploaded PDF Files ---
+async function processBulkPdfFiles(fileList) {
+    const jdText = document.getElementById('recruiterJD').value.trim();
+
+    // Configure PDF.js worker
+    if (typeof pdfjsLib !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+        if (file.type !== 'application/pdf' && !file.name.endsWith('.pdf')) continue;
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let fullText = '';
+
+            for (let p = 1; p <= pdfDoc.numPages; p++) {
+                const page = await pdfDoc.getPage(p);
+                const tokenContent = await page.getTextContent();
+                const pageText = tokenContent.items.map(item => item.str).join(' ');
+                fullText += pageText + '\n';
+            }
+
+            // Extract candidate info
+            const parsedInfo = parseCandidateText(fullText, file.name);
+            const matchAnalysis = evaluateCandidateAnalysis(fullText, jdText);
+
+            recruiterState.candidates.push({
+                id: Date.now() + Math.random(),
+                name: parsedInfo.name,
+                fileName: file.name,
+                email: parsedInfo.email,
+                phone: parsedInfo.phone,
+                fullText: fullText,
+                score: matchAnalysis.score,
+                matchedSkills: matchAnalysis.matchedSkills,
+                missingSkills: matchAnalysis.missingSkills
+            });
+
+        } catch (err) {
+            console.error("Error parsing PDF resume:", file.name, err);
+        }
+    }
+
+    recalculateRecruiterMatches();
+}
+
+// --- Parse Candidate Info from Raw Text ---
+function parseCandidateText(rawText, fileName) {
+    const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+    let name = fileName.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ');
+    
+    if (lines.length > 0) {
+        const firstLine = lines[0];
+        if (firstLine.length < 40 && !firstLine.includes('@') && !/\d/.test(firstLine)) {
+            name = firstLine;
+        }
+    }
+
+    // Regex for Email
+    const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const email = emailMatch ? emailMatch[0] : 'No Email Found';
+
+    // Regex for Phone
+    const phoneMatch = rawText.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4,6}/);
+    const phone = phoneMatch ? phoneMatch[0] : 'No Phone Found';
+
+    return { name, email, phone };
+}
+
+// --- Evaluate Candidate Match Analysis ---
+function evaluateCandidateAnalysis(candidateText, jdText) {
+    if (!jdText || jdText.trim().length === 0) {
+        return { score: 0, matchedSkills: [], missingSkills: [] };
+    }
+
+    const stopWords = new Set(['and','the','with','for','you','that','this','have','from','will','are','all','our','we','or','is','in','on','at','to','a','an','of','be','by','as','looking','seeking','required','requirements','experience','years']);
+    
+    // Extract keywords from JD
+    const rawJdTokens = jdText.toLowerCase().match(/[a-z0-9+#.]{2,}/g) || [];
+    const uniqueJdKeywords = [...new Set(rawJdTokens.filter(t => !stopWords.has(t) && t.length > 2))];
+
+    if (uniqueJdKeywords.length === 0) {
+        return { score: 0, matchedSkills: [], missingSkills: [] };
+    }
+
+    const lowerCandidate = candidateText.toLowerCase();
+    const matched = [];
+    const missing = [];
+
+    uniqueJdKeywords.forEach(kw => {
+        if (lowerCandidate.includes(kw)) {
+            matched.push(kw);
+        } else {
+            missing.push(kw);
+        }
+    });
+
+    const matchRatio = matched.length / uniqueJdKeywords.length;
+    const score = Math.min(100, Math.round(matchRatio * 100));
+
+    return {
+        score: score,
+        matchedSkills: matched.slice(0, 15),
+        missingSkills: missing.slice(0, 15)
+    };
+}
+
+// --- Recalculate all Candidate Scores when JD changes ---
+function recalculateRecruiterMatches() {
+    const jdText = document.getElementById('recruiterJD') ? document.getElementById('recruiterJD').value.trim() : '';
+    recruiterState.candidates.forEach(cand => {
+        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText);
+        cand.score = analysis.score;
+        cand.matchedSkills = analysis.matchedSkills;
+        cand.missingSkills = analysis.missingSkills;
+    });
+
+    // Sort descending by match score
+    recruiterState.candidates.sort((a, b) => b.score - a.score);
+    renderRecruiterLeaderboard();
+}
+
+// --- Render Candidate Leaderboard Table ---
+function renderRecruiterLeaderboard() {
+    const tbody = document.getElementById('recruiterTableBody');
+    const badgeTotal = document.getElementById('stat-total');
+    const badgeQualified = document.getElementById('stat-qualified');
+    const badgeAvg = document.getElementById('stat-average');
+    const badgeCount = document.getElementById('candidates-count-badge');
+
+    if (!tbody) return;
+
+    const filtered = recruiterState.candidates.filter(c => c.score >= recruiterState.minScoreFilter);
+
+    // Update Stats
+    const totalCount = recruiterState.candidates.length;
+    const qualifiedCount = recruiterState.candidates.filter(c => c.score >= 70).length;
+    const avgScore = totalCount > 0 ? Math.round(recruiterState.candidates.reduce((acc, c) => acc + c.score, 0) / totalCount) : 0;
+
+    if (badgeTotal) badgeTotal.textContent = totalCount;
+    if (badgeQualified) badgeQualified.textContent = qualifiedCount;
+    if (badgeAvg) badgeAvg.textContent = avgScore + '%';
+    if (badgeCount) badgeCount.textContent = `${totalCount} Candidates Processed`;
+
+    if (filtered.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center empty-msg">
+                    <i class="fa-solid fa-inbox empty-icon"></i>
+                    <p>No candidates match the selected criteria (${recruiterState.minScoreFilter}% minimum score).</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    tbody.innerHTML = '';
+
+    filtered.forEach((cand, idx) => {
+        const tr = document.createElement('tr');
+
+        let rankClass = '';
+        if (idx === 0) rankClass = 'top-1';
+        else if (idx === 1) rankClass = 'top-2';
+        else if (idx === 2) rankClass = 'top-3';
+
+        let statusBadgeHtml = '';
+        let fillBg = '#ef4444';
+        if (cand.score >= 75) {
+            statusBadgeHtml = `<span class="badge badge-top"><i class="fa-solid fa-star"></i> Top Match</span>`;
+            fillBg = '#10b981';
+        } else if (cand.score >= 50) {
+            statusBadgeHtml = `<span class="badge badge-potential"><i class="fa-solid fa-bolt"></i> Potential</span>`;
+            fillBg = '#f59e0b';
+        } else {
+            statusBadgeHtml = `<span class="badge badge-low"><i class="fa-solid fa-triangle-exclamation"></i> Low Match</span>`;
+            fillBg = '#ef4444';
+        }
+
+        tr.innerHTML = `
+            <td>
+                <span class="rank-badge ${rankClass}">#${idx + 1}</span>
+            </td>
+            <td>
+                <span class="cand-name">${escapeHtml(cand.name)}</span>
+                <span class="cand-filename"><i class="fa-solid fa-file-pdf"></i> ${escapeHtml(cand.fileName || 'Uploaded_CV.pdf')}</span>
+            </td>
+            <td>
+                <div class="cand-contact">
+                    <span><i class="fa-solid fa-envelope"></i> ${escapeHtml(cand.email)}</span>
+                    <span><i class="fa-solid fa-phone"></i> ${escapeHtml(cand.phone)}</span>
+                </div>
+            </td>
+            <td>
+                <div class="score-bar-wrapper">
+                    <div class="score-bar-bg">
+                        <div class="score-bar-fill" style="width: ${cand.score}%; background: ${fillBg};"></div>
+                    </div>
+                    <span class="score-text" style="color: ${fillBg}">${cand.score}%</span>
+                </div>
+            </td>
+            <td>${statusBadgeHtml}</td>
+            <td>
+                <button class="btn btn-secondary btn-sm" onclick="openCandidateModal('${cand.id}')">
+                    <i class="fa-solid fa-eye"></i> Analysis
+                </button>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+}
+
+// --- Open Candidate Analysis Modal ---
+function openCandidateModal(candId) {
+    const cand = recruiterState.candidates.find(c => String(c.id) === String(candId));
+    if (!cand) return;
+
+    const modal = document.getElementById('candidateModal');
+    const modalName = document.getElementById('modalCandidateName');
+    const scoreCircle = document.getElementById('modalScoreCircle');
+    const statusBadge = document.getElementById('modalStatusBadge');
+    const contactSub = document.getElementById('modalCandidateContact');
+    const matchedCloud = document.getElementById('modalMatchedSkills');
+    const missingCloud = document.getElementById('modalMissingSkills');
+    const rawContent = document.getElementById('modalRawContent');
+
+    if (modalName) modalName.textContent = cand.name + " - Candidate Breakdown";
+    if (scoreCircle) {
+        scoreCircle.textContent = cand.score + '%';
+        scoreCircle.style.background = cand.score >= 75 ? '#10b981' : (cand.score >= 50 ? '#f59e0b' : '#ef4444');
+    }
+
+    if (statusBadge) {
+        statusBadge.textContent = cand.score >= 75 ? "Top Qualified Candidate" : (cand.score >= 50 ? "Moderate Qualification Match" : "Requires Skill Upgrading");
+        statusBadge.style.color = cand.score >= 75 ? '#10b981' : (cand.score >= 50 ? '#f59e0b' : '#ef4444');
+    }
+
+    if (contactSub) {
+        contactSub.textContent = `Email: ${cand.email} | Phone: ${cand.phone}`;
+    }
+
+    if (matchedCloud) {
+        matchedCloud.innerHTML = cand.matchedSkills.length > 0 
+            ? cand.matchedSkills.map(s => `<span class="tag tag-matched"><i class="fa-solid fa-check"></i> ${escapeHtml(s)}</span>`).join('')
+            : '<span class="text-muted">No specific tech skills matched yet.</span>';
+    }
+
+    if (missingCloud) {
+        missingCloud.innerHTML = cand.missingSkills.length > 0
+            ? cand.missingSkills.map(s => `<span class="tag tag-missing"><i class="fa-solid fa-xmark"></i> ${escapeHtml(s)}</span>`).join('')
+            : '<span class="text-muted">No key missing skills identified.</span>';
+    }
+
+    if (rawContent) {
+        rawContent.textContent = cand.fullText || "No raw text extracted.";
+    }
+
+    if (modal) modal.style.display = 'flex';
+}
+
+// --- Load 5 Realistic Demo Candidate Resumes ---
+function loadDemoRecruiterCandidates() {
+    const jdInput = document.getElementById('recruiterJD');
+    if (jdInput && (!jdInput.value || jdInput.value.trim().length === 0)) {
+        jdInput.value = `We are hiring a Senior Full Stack Engineer proficient in React, Node.js, Python, PostgreSQL, Docker, AWS, REST APIs, GraphQL, and Agile methodologies with at least 4 years experience. Strong problem solving, microservices architecture, and CI/CD automation background required.`;
+    }
+
+    const jdText = jdInput ? jdInput.value : '';
+
+    const demoCVs = [
+        {
+            id: 'demo-1',
+            name: 'Tanvir Hossain',
+            fileName: 'Tanvir_Hossain_Senior_FullStack.pdf',
+            email: 'tanvir.dev@example.com',
+            phone: '+880 1712-345678',
+            fullText: `Tanvir Hossain - Senior Full Stack Engineer\nEmail: tanvir.dev@example.com | Phone: +880 1712-345678\nSkills: React, Node.js, Python, PostgreSQL, Docker, AWS, REST APIs, GraphQL, Microservices, Agile, CI/CD, JavaScript, TypeScript, Redis.\nExperience: 5+ years building scalable SaaS platforms. Architected microservices serving 500k+ active users. Reduced database query latency by 45% using PostgreSQL indexing and Redis.`
+        },
+        {
+            id: 'demo-2',
+            name: 'Sharmin Akter',
+            fileName: 'Sharmin_Akter_Frontend_Dev.pdf',
+            email: 'sharmin.frontend@example.com',
+            phone: '+880 1819-876543',
+            fullText: `Sharmin Akter - Frontend Developer\nEmail: sharmin.frontend@example.com | Phone: +880 1819-876543\nSkills: React.js, JavaScript, HTML5, CSS3, Tailwind CSS, REST APIs, Git, Figma, Redux.\nExperience: 3 years building responsive web interfaces and user portals using React and Redux.`
+        },
+        {
+            id: 'demo-3',
+            name: 'Mahmudur Rahman',
+            fileName: 'Mahmudur_Rahman_Data_Eng.pdf',
+            email: 'mahmud.data@example.com',
+            phone: '+880 1911-223344',
+            fullText: `Mahmudur Rahman - Python & Data Engineer\nEmail: mahmud.data@example.com | Phone: +880 1911-223344\nSkills: Python, PostgreSQL, MongoDB, Docker, AWS, Spark, Pandas, SQL, REST APIs.\nExperience: 4 years designing data pipelines and database schemas for financial analytics.`
+        },
+        {
+            id: 'demo-4',
+            name: 'Anisur Rahman',
+            fileName: 'Anisur_Rahman_Cloud_DevOps.pdf',
+            email: 'anisur.cloud@example.com',
+            phone: '+880 1677-554433',
+            fullText: `Anisur Rahman - DevOps & Cloud Architect\nEmail: anisur.cloud@example.com | Phone: +880 1677-554433\nSkills: AWS, Docker, Kubernetes, CI/CD, Linux, Python, Terraform, Microservices, PostgreSQL.\nExperience: 6 years automating cloud deployments, container orchestration, and infrastructure security.`
+        },
+        {
+            id: 'demo-5',
+            name: 'Nadia Islam',
+            fileName: 'Nadia_Islam_QA_Tester.pdf',
+            email: 'nadia.qa@example.com',
+            phone: '+880 1522-998877',
+            fullText: `Nadia Islam - Junior QA Automation Engineer\nEmail: nadia.qa@example.com | Phone: +880 1522-998877\nSkills: Manual Testing, Selenium, JavaScript, Postman, Bug Tracking, JIRA.\nExperience: 1.5 years creating automated test suites for web applications.`
+        }
+    ];
+
+    recruiterState.candidates = demoCVs.map(cand => {
+        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText);
+        return {
+            ...cand,
+            score: analysis.score,
+            matchedSkills: analysis.matchedSkills,
+            missingSkills: analysis.missingSkills
+        };
+    });
+
+    recruiterState.candidates.sort((a, b) => b.score - a.score);
+    renderRecruiterLeaderboard();
+}
+
+// --- Export Recruitment Report (CSV) ---
+function exportRecruiterCSVReport() {
+    if (recruiterState.candidates.length === 0) {
+        alert("No candidates available to export.");
+        return;
+    }
+
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Rank,Candidate Name,Email,Phone,ATS Match Score (%),Status,Matched Skills,Missing Skills\n";
+
+    recruiterState.candidates.forEach((cand, idx) => {
+        const rank = idx + 1;
+        const name = `"${cand.name.replace(/"/g, '""')}"`;
+        const email = `"${cand.email.replace(/"/g, '""')}"`;
+        const phone = `"${cand.phone.replace(/"/g, '""')}"`;
+        const score = cand.score + "%";
+        const status = cand.score >= 75 ? "Top Match" : (cand.score >= 50 ? "Potential" : "Low Match");
+        const matched = `"${cand.matchedSkills.join(', ').replace(/"/g, '""')}"`;
+        const missing = `"${cand.missingSkills.join(', ').replace(/"/g, '""')}"`;
+
+        csvContent += `${rank},${name},${email},${phone},${score},${status},${matched},${missing}\n`;
+    });
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `Candidate_Recruitment_Report_${new Date().toISOString().slice(0,10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+

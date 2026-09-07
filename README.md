@@ -13,7 +13,12 @@ Built for developers, job seekers, and students who want to build ATS-optimized 
 
 ## ✨ Features
 
-- ⚡ **Live Dual-Pane Editor**: Edit fields on the left and see real-time, pixel-perfect A4 resume updates on the right.
+- ⚡ **Dual-Mode System**:
+  - 👤 **Builder Mode**: Interactive candidate resume & cover letter creator with live A4 preview.
+  - 🏢 **Company ATS Screener Mode**: Recruiter portal to upload multiple candidate PDF resumes, enter Job Requirements, and rank applicants automatically.
+- 🏢 **Bulk PDF Resume Screener**: Drag & drop or browse multiple PDF CVs at once. Built-in `pdf.js` extracts raw text, candidate email, and phone numbers.
+- 🏆 **Candidate Leaderboard & Ranking**: Automatically scores and ranks candidates descending by ATS Match Score (%) with color-coded status badges (*Top Match*, *Potential*, *Low Match*).
+- 📊 **Detailed Candidate Inspector & HR CSV Export**: Inspect individual candidate matched/missing skills, review extracted raw text, and export comprehensive CSV recruitment reports for HR teams.
 - ✉️ **Cover Letter Builder & AI Auto-Draft**: Generate matching, professional cover letters with 1-click **AI Auto-Drafting** aligned with your job title and target company.
 - ⚡ **AI High-Impact Action Verb Helper**: Clickable action verb chips (*Architected, Spearheaded, Optimized, Automated, Quantified*) for experience bullet points.
 - 📸 **Profile Photo Support & Custom Shapes**: Upload an optional profile photo with custom shape options (**Circle**, **Rounded**, **Square**) and sizing controls (**Small 64px**, **Medium 80px**, **Large 96px**).
@@ -27,8 +32,8 @@ Built for developers, job seekers, and students who want to build ATS-optimized 
 - 💾 **Data Privacy & Backup**:
   - Auto-saves all changes to browser `localStorage`.
   - **Export / Import JSON**: Easily back up or share your resume data structure.
-  - **Preloaded Sample Data**: Single-click demo data loader for rapid testing.
-- 🖨️ **1-Click Print & PDF Export**: Native `@media print` CSS optimization for exact A4 paper size downloads without UI clutter.
+  - **Preloaded Sample Data**: Single-click demo data loader for rapid testing (supports 5 demo candidate CVs for recruiters).
+- 🖨️ **1-Click Print & Direct PDF Download**: Direct PDF export via `html2pdf.js` or browser print fallback with `@media print` CSS optimization for exact A4 paper size downloads without UI clutter.
 
 ---
 

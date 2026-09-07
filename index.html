@@ -24,8 +24,14 @@
             <div class="logo-icon"><i class="fa-solid fa-file-contract"></i></div>
             <div class="brand-text">
                 <h1>SmartResume<span class="highlight">.ats</span></h1>
-                <p>AI-Powered Resume Builder & Keyword Matcher</p>
+                <p>AI-Powered Resume Builder & Company ATS Portal</p>
             </div>
+        </div>
+
+        <!-- Mode Switcher: Candidate Builder vs Company Screener -->
+        <div class="mode-switcher">
+            <button id="mode-builder" class="mode-btn active"><i class="fa-solid fa-user-pen"></i> Builder Mode</button>
+            <button id="mode-screener" class="mode-btn"><i class="fa-solid fa-building-user"></i> Company ATS Screener</button>
         </div>
 
         <div class="header-controls">
@@ -531,6 +537,133 @@
 
     </main>
 
-    <script src="app.js?v=2.0"></script>
+    <!-- Company Recruiter ATS Screener Workspace (Toggled via Header Switcher) -->
+    <section id="recruiter-workspace" class="recruiter-container" style="display: none;">
+        <div class="recruiter-header-card">
+            <div class="recruiter-title-area">
+                <h2><i class="fa-solid fa-building-user color-blue"></i> Company ATS Candidate Screener</h2>
+                <p>Upload incoming candidate CVs (PDF) and match them against your job requirements automatically.</p>
+            </div>
+            <div class="recruiter-actions">
+                <button id="btn-load-recruiter-demo" class="btn btn-secondary">
+                    <i class="fa-solid fa-users-viewfinder"></i> Load 5 Demo Candidates
+                </button>
+                <button id="btn-export-recruiter-csv" class="btn btn-primary">
+                    <i class="fa-solid fa-file-csv"></i> Export HR Report (CSV)
+                </button>
+            </div>
+        </div>
+
+        <div class="recruiter-grid">
+            <!-- Left Pane: Job Requirements & Bulk PDF Uploader -->
+            <div class="recruiter-card">
+                <h3><i class="fa-solid fa-file-signature"></i> 1. Enter Job Description / Requirements</h3>
+                <div class="form-group margin-top">
+                    <label for="recruiterJD">Job Requirements & Technical Stack</label>
+                    <textarea id="recruiterJD" rows="8" placeholder="Paste job requirements here... e.g. We are hiring a Senior Full Stack Developer proficient in React, Node.js, Python, PostgreSQL, Docker, AWS, REST APIs, GraphQL, and Agile methodologies with at least 4 years experience..."></textarea>
+                </div>
+
+                <div class="form-group margin-top">
+                    <label><i class="fa-solid fa-folder-plus"></i> 2. Bulk Upload Candidate Resumes (PDF)</label>
+                    <div class="bulk-upload-box" id="bulkUploadDropzone">
+                        <i class="fa-solid fa-cloud-arrow-up dropzone-icon"></i>
+                        <h4>Drag & Drop Candidate CVs (PDF) or <span class="highlight">Browse</span></h4>
+                        <p>Upload multiple PDF resumes at once. Built-in PDF parser will extract text & calculate match scores.</p>
+                        <input type="file" id="bulkPdfInput" accept=".pdf" multiple style="display:none;">
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('bulkPdfInput').click()">
+                            <i class="fa-solid fa-file-pdf"></i> Select PDF Resumes
+                        </button>
+                    </div>
+                </div>
+
+                <div class="filter-controls margin-top">
+                    <label for="minScoreFilter">Filter Minimum ATS Score: <strong id="minScoreVal" class="color-blue">0%</strong></label>
+                    <input type="range" id="minScoreFilter" min="0" max="100" value="0" step="5">
+                </div>
+            </div>
+
+            <!-- Right Pane: Candidate Ranking Leaderboard -->
+            <div class="recruiter-card">
+                <div class="card-header-flex">
+                    <h3><i class="fa-solid fa-trophy color-warning"></i> Candidate Ranking Leaderboard</h3>
+                    <span class="badge badge-info" id="candidates-count-badge">0 Candidates Processed</span>
+                </div>
+
+                <div class="recruiter-stats-row margin-top">
+                    <div class="r-stat">
+                        <span class="r-val" id="stat-total">0</span>
+                        <span class="r-lbl">Total CVs</span>
+                    </div>
+                    <div class="r-stat">
+                        <span class="r-val color-success" id="stat-qualified">0</span>
+                        <span class="r-lbl">Top Matches (≥70%)</span>
+                    </div>
+                    <div class="r-stat">
+                        <span class="r-val color-warning" id="stat-average">0%</span>
+                        <span class="r-lbl">Average Score</span>
+                    </div>
+                </div>
+
+                <div class="table-responsive margin-top">
+                    <table class="recruiter-table">
+                        <thead>
+                            <tr>
+                                <th>Rank</th>
+                                <th>Candidate Name</th>
+                                <th>Contact Details</th>
+                                <th>ATS Score</th>
+                                <th>Match Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recruiterTableBody">
+                            <tr>
+                                <td colspan="6" class="text-center empty-msg">
+                                    <i class="fa-solid fa-inbox empty-icon"></i>
+                                    <p>No CVs checked yet. Paste job requirements on the left and upload candidate PDF resumes or click <strong>"Load 5 Demo Candidates"</strong> to test.</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Candidate Detail Inspector Modal -->
+        <div id="candidateModal" class="modal-overlay" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalCandidateName">Candidate Resume Analysis</h3>
+                    <button class="modal-close" id="btnCloseModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-score-banner">
+                        <div class="m-score-circle" id="modalScoreCircle">0%</div>
+                        <div>
+                            <h4 id="modalStatusBadge" class="m-status-title">Status</h4>
+                            <p id="modalCandidateContact" class="m-contact-sub">Email | Phone</p>
+                        </div>
+                    </div>
+
+                    <div class="modal-section margin-top">
+                        <h4><i class="fa-solid fa-circle-check color-success"></i> Matched Technical Skills & Keywords</h4>
+                        <div id="modalMatchedSkills" class="tag-cloud"></div>
+                    </div>
+
+                    <div class="modal-section margin-top">
+                        <h4><i class="fa-solid fa-triangle-exclamation color-danger"></i> Missing Key Requirements</h4>
+                        <div id="modalMissingSkills" class="tag-cloud"></div>
+                    </div>
+
+                    <div class="modal-section margin-top">
+                        <h4><i class="fa-solid fa-file-lines color-blue"></i> Extracted Resume Raw Text</h4>
+                        <div id="modalRawContent" class="raw-content-box"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script src="app.js?v=3.0"></script>
 </body>
 </html>
