@@ -1515,3 +1515,41 @@ input[type="color"]::-webkit-color-swatch {
     word-break: break-word;
 }
 
+/* Criteria Filter Chips & Helper */
+.margin-top-sm {
+    margin-top: 8px;
+}
+
+.criteria-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.criteria-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.chip-item {
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.chip-item:hover {
+    border-color: var(--accent-blue);
+    color: var(--text-primary);
+    background: rgba(59, 130, 246, 0.15);
+}
+
+

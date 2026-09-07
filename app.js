@@ -1228,21 +1228,44 @@ function initModeSwitcher() {
     }
 }
 
+// Quick Add Custom Criteria Chip helper
+function addCustomCriteriaChip(term) {
+    const input = document.getElementById('customCriteriaInput');
+    if (!input) return;
+    let val = input.value.trim();
+    if (!val) {
+        input.value = term;
+    } else {
+        const terms = val.split(',').map(t => t.trim()).filter(Boolean);
+        if (!terms.includes(term)) {
+            terms.push(term);
+            input.value = terms.join(', ');
+        }
+    }
+    recalculateRecruiterMatches();
+}
+
+// Global Staged Files Queue
+let stagedPdfFiles = [];
+
 // --- Initialize Recruiter Portal Listeners ---
 function initRecruiterPortal() {
     const jdInput = document.getElementById('recruiterJD');
+    const customCriteriaInput = document.getElementById('customCriteriaInput');
     const bulkPdfInput = document.getElementById('bulkPdfInput');
     const dropzone = document.getElementById('bulkUploadDropzone');
     const minScoreSlider = document.getElementById('minScoreFilter');
+    const btnStartScreening = document.getElementById('btn-start-screening');
     const btnLoadDemo = document.getElementById('btn-load-recruiter-demo');
     const btnExportCSV = document.getElementById('btn-export-recruiter-csv');
     const btnCloseModal = document.getElementById('btnCloseModal');
 
-    // JD text change re-computes matches
+    // JD text & Custom Criteria change re-computes matches
     if (jdInput) {
-        jdInput.addEventListener('input', () => {
-            recalculateRecruiterMatches();
-        });
+        jdInput.addEventListener('input', () => recalculateRecruiterMatches());
+    }
+    if (customCriteriaInput) {
+        customCriteriaInput.addEventListener('input', () => recalculateRecruiterMatches());
     }
 
     // Min score slider
@@ -1255,17 +1278,17 @@ function initRecruiterPortal() {
         });
     }
 
-    // Bulk PDF Upload File Input
+    // Bulk PDF Upload File Input (Stages files into queue)
     if (bulkPdfInput) {
-        bulkPdfInput.addEventListener('change', async (e) => {
+        bulkPdfInput.addEventListener('change', (e) => {
             if (e.target.files && e.target.files.length > 0) {
-                await processBulkPdfFiles(e.target.files);
-                e.target.value = '';
+                stagedPdfFiles = Array.from(e.target.files);
+                updateUploadStatusText();
             }
         });
     }
 
-    // Drag & Drop Dropzone
+    // Drag & Drop Dropzone (Stages dropped files into queue)
     if (dropzone) {
         ['dragenter', 'dragover'].forEach(eventName => {
             dropzone.addEventListener(eventName, (e) => {
@@ -1281,11 +1304,32 @@ function initRecruiterPortal() {
             }, false);
         });
 
-        dropzone.addEventListener('drop', async (e) => {
+        dropzone.addEventListener('drop', (e) => {
             const dt = e.dataTransfer;
-            const files = dt.files;
-            if (files && files.length > 0) {
-                await processBulkPdfFiles(files);
+            if (dt && dt.files && dt.files.length > 0) {
+                stagedPdfFiles = Array.from(dt.files).filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'));
+                updateUploadStatusText();
+            }
+        });
+    }
+
+    // Start Screening Process Button Listener
+    if (btnStartScreening) {
+        btnStartScreening.addEventListener('click', async () => {
+            if (stagedPdfFiles.length > 0) {
+                btnStartScreening.disabled = true;
+                btnStartScreening.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing ${stagedPdfFiles.length} CVs...`;
+                
+                await processBulkPdfFiles(stagedPdfFiles);
+                stagedPdfFiles = [];
+                updateUploadStatusText();
+
+                btnStartScreening.disabled = false;
+                btnStartScreening.innerHTML = `<i class="fa-solid fa-rocket"></i> Start Screening Process`;
+            } else if (recruiterState.candidates.length > 0) {
+                recalculateRecruiterMatches();
+            } else {
+                alert("Please select or drop PDF resumes first, or click 'Load 5 Demo Candidates'.");
             }
         });
     }
@@ -1318,6 +1362,17 @@ function initRecruiterPortal() {
             const modal = document.getElementById('candidateModal');
             if (modal) modal.style.display = 'none';
         });
+    }
+}
+
+// Helper to update status text in upload dropzone
+function updateUploadStatusText() {
+    const statusText = document.getElementById('upload-status-text');
+    if (!statusText) return;
+    if (stagedPdfFiles.length > 0) {
+        statusText.innerHTML = `<strong style="color:#10b981;"><i class="fa-solid fa-file-circle-check"></i> ${stagedPdfFiles.length} PDF Resume(s) Ready.</strong> Click "Start Screening Process" below.`;
+    } else {
+        statusText.textContent = "Select multiple PDF resumes at once.";
     }
 }
 
@@ -1393,9 +1448,10 @@ function parseCandidateText(rawText, fileName) {
     return { name, email, phone };
 }
 
-// --- Evaluate Candidate Match Analysis ---
-function evaluateCandidateAnalysis(candidateText, jdText) {
-    if (!jdText || jdText.trim().length === 0) {
+// --- Evaluate Candidate Match Analysis (JD + Custom Criteria) ---
+function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '') {
+    const combinedText = (jdText + ' ' + customCriteriaText).trim();
+    if (!combinedText) {
         return { score: 0, matchedSkills: [], missingSkills: [] };
     }
 
@@ -1405,37 +1461,59 @@ function evaluateCandidateAnalysis(candidateText, jdText) {
     const rawJdTokens = jdText.toLowerCase().match(/[a-z0-9+#.]{2,}/g) || [];
     const uniqueJdKeywords = [...new Set(rawJdTokens.filter(t => !stopWords.has(t) && t.length > 2))];
 
-    if (uniqueJdKeywords.length === 0) {
-        return { score: 0, matchedSkills: [], missingSkills: [] };
-    }
+    // Extract custom criteria terms (e.g. Pabna, Web Developer, Network Eng, Technician, 3+ Years)
+    const customTerms = customCriteriaText
+        .split(',')
+        .map(t => t.trim().toLowerCase())
+        .filter(t => t.length > 0 && !stopWords.has(t));
 
     const lowerCandidate = candidateText.toLowerCase();
     const matched = [];
     const missing = [];
 
-    uniqueJdKeywords.forEach(kw => {
-        if (lowerCandidate.includes(kw)) {
-            matched.push(kw);
+    // Check Custom Terms (Must-Have Criteria get priority!)
+    customTerms.forEach(term => {
+        if (lowerCandidate.includes(term)) {
+            matched.push(`⭐ ${term.toUpperCase()}`);
         } else {
-            missing.push(kw);
+            missing.push(`⭐ ${term.toUpperCase()}`);
         }
     });
 
-    const matchRatio = matched.length / uniqueJdKeywords.length;
+    // Check JD Keywords
+    uniqueJdKeywords.forEach(kw => {
+        if (!customTerms.includes(kw)) {
+            if (lowerCandidate.includes(kw)) {
+                matched.push(kw);
+            } else {
+                missing.push(kw);
+            }
+        }
+    });
+
+    const totalKeywords = customTerms.length + uniqueJdKeywords.length;
+    if (totalKeywords === 0) {
+        return { score: 0, matchedSkills: [], missingSkills: [] };
+    }
+
+    const totalMatchedCount = matched.length;
+    const matchRatio = totalMatchedCount / totalKeywords;
     const score = Math.min(100, Math.round(matchRatio * 100));
 
     return {
         score: score,
-        matchedSkills: matched.slice(0, 15),
-        missingSkills: missing.slice(0, 15)
+        matchedSkills: matched.slice(0, 20),
+        missingSkills: missing.slice(0, 20)
     };
 }
 
-// --- Recalculate all Candidate Scores when JD changes ---
+// --- Recalculate all Candidate Scores when JD or Custom Criteria changes ---
 function recalculateRecruiterMatches() {
     const jdText = document.getElementById('recruiterJD') ? document.getElementById('recruiterJD').value.trim() : '';
+    const customCriteriaText = document.getElementById('customCriteriaInput') ? document.getElementById('customCriteriaInput').value.trim() : '';
+
     recruiterState.candidates.forEach(cand => {
-        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText);
+        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText, customCriteriaText);
         cand.score = analysis.score;
         cand.matchedSkills = analysis.matchedSkills;
         cand.missingSkills = analysis.missingSkills;
@@ -1588,11 +1666,18 @@ function openCandidateModal(candId) {
 // --- Load 5 Realistic Demo Candidate Resumes ---
 function loadDemoRecruiterCandidates() {
     const jdInput = document.getElementById('recruiterJD');
+    const customCriteriaInput = document.getElementById('customCriteriaInput');
+
     if (jdInput && (!jdInput.value || jdInput.value.trim().length === 0)) {
-        jdInput.value = `We are hiring a Senior Full Stack Engineer proficient in React, Node.js, Python, PostgreSQL, Docker, AWS, REST APIs, GraphQL, and Agile methodologies with at least 4 years experience. Strong problem solving, microservices architecture, and CI/CD automation background required.`;
+        jdInput.value = `We are hiring a Senior Web Developer & Software Engineer proficient in React, Node.js, Python, PostgreSQL, Docker, AWS, REST APIs, and Agile methodologies with at least 3 years experience.`;
+    }
+
+    if (customCriteriaInput && (!customCriteriaInput.value || customCriteriaInput.value.trim().length === 0)) {
+        customCriteriaInput.value = `Pabna, Web Developer, 3+ Years Exp, B.Sc`;
     }
 
     const jdText = jdInput ? jdInput.value : '';
+    const customCriteriaText = customCriteriaInput ? customCriteriaInput.value : '';
 
     const demoCVs = [
         {
@@ -1601,7 +1686,7 @@ function loadDemoRecruiterCandidates() {
             fileName: 'Tanvir_Hossain_Senior_FullStack.pdf',
             email: 'tanvir.dev@example.com',
             phone: '+880 1712-345678',
-            fullText: `Tanvir Hossain - Senior Full Stack Engineer\nEmail: tanvir.dev@example.com | Phone: +880 1712-345678\nSkills: React, Node.js, Python, PostgreSQL, Docker, AWS, REST APIs, GraphQL, Microservices, Agile, CI/CD, JavaScript, TypeScript, Redis.\nExperience: 5+ years building scalable SaaS platforms. Architected microservices serving 500k+ active users. Reduced database query latency by 45% using PostgreSQL indexing and Redis.`
+            fullText: `Tanvir Hossain - Senior Web Developer & Software Engineer\nLocation: Pabna, Bangladesh | Degree: B.Sc in CSE\nEmail: tanvir.dev@example.com | Phone: +880 1712-345678\nSkills: React, Node.js, Python, PostgreSQL, Docker, AWS, REST APIs, GraphQL, Microservices, Agile, CI/CD, JavaScript, TypeScript, Redis.\nExperience: 5+ Years Exp building scalable SaaS platforms. Web Developer and System Architect. Reduced database query latency by 45% using PostgreSQL indexing.`
         },
         {
             id: 'demo-2',
@@ -1609,23 +1694,23 @@ function loadDemoRecruiterCandidates() {
             fileName: 'Sharmin_Akter_Frontend_Dev.pdf',
             email: 'sharmin.frontend@example.com',
             phone: '+880 1819-876543',
-            fullText: `Sharmin Akter - Frontend Developer\nEmail: sharmin.frontend@example.com | Phone: +880 1819-876543\nSkills: React.js, JavaScript, HTML5, CSS3, Tailwind CSS, REST APIs, Git, Figma, Redux.\nExperience: 3 years building responsive web interfaces and user portals using React and Redux.`
+            fullText: `Sharmin Akter - Web Developer & Frontend Engineer\nLocation: Pabna, Bangladesh | Degree: B.Sc\nEmail: sharmin.frontend@example.com | Phone: +880 1819-876543\nSkills: React.js, JavaScript, HTML5, CSS3, Tailwind CSS, REST APIs, Git, Figma, Redux.\nExperience: 3+ Years Exp building responsive web interfaces and user portals.`
         },
         {
             id: 'demo-3',
             name: 'Mahmudur Rahman',
-            fileName: 'Mahmudur_Rahman_Data_Eng.pdf',
+            fileName: 'Mahmudur_Rahman_Network_Eng.pdf',
             email: 'mahmud.data@example.com',
             phone: '+880 1911-223344',
-            fullText: `Mahmudur Rahman - Python & Data Engineer\nEmail: mahmud.data@example.com | Phone: +880 1911-223344\nSkills: Python, PostgreSQL, MongoDB, Docker, AWS, Spark, Pandas, SQL, REST APIs.\nExperience: 4 years designing data pipelines and database schemas for financial analytics.`
+            fullText: `Mahmudur Rahman - Network Eng & Infrastructure Specialist\nLocation: Pabna, Bangladesh | Degree: B.Sc\nEmail: mahmud.data@example.com | Phone: +880 1911-223344\nSkills: Network Eng, Router Configuration, Python, PostgreSQL, MongoDB, Docker, AWS, Cisco, Linux, SQL.\nExperience: 4 Years Exp configuring corporate network infrastructure and server databases.`
         },
         {
             id: 'demo-4',
             name: 'Anisur Rahman',
-            fileName: 'Anisur_Rahman_Cloud_DevOps.pdf',
+            fileName: 'Anisur_Rahman_Technician.pdf',
             email: 'anisur.cloud@example.com',
             phone: '+880 1677-554433',
-            fullText: `Anisur Rahman - DevOps & Cloud Architect\nEmail: anisur.cloud@example.com | Phone: +880 1677-554433\nSkills: AWS, Docker, Kubernetes, CI/CD, Linux, Python, Terraform, Microservices, PostgreSQL.\nExperience: 6 years automating cloud deployments, container orchestration, and infrastructure security.`
+            fullText: `Anisur Rahman - Hardware Technician & Cloud Specialist\nLocation: Dhaka, Bangladesh\nEmail: anisur.cloud@example.com | Phone: +880 1677-554433\nSkills: Hardware Technician, Server Maintenance, AWS, Docker, Kubernetes, Linux, Troubleshooting.\nExperience: 6 Years Exp managing IT equipment and server room operations.`
         },
         {
             id: 'demo-5',
@@ -1633,12 +1718,12 @@ function loadDemoRecruiterCandidates() {
             fileName: 'Nadia_Islam_QA_Tester.pdf',
             email: 'nadia.qa@example.com',
             phone: '+880 1522-998877',
-            fullText: `Nadia Islam - Junior QA Automation Engineer\nEmail: nadia.qa@example.com | Phone: +880 1522-998877\nSkills: Manual Testing, Selenium, JavaScript, Postman, Bug Tracking, JIRA.\nExperience: 1.5 years creating automated test suites for web applications.`
+            fullText: `Nadia Islam - Junior QA Automation Engineer\nLocation: Rajshahi, Bangladesh\nEmail: nadia.qa@example.com | Phone: +880 1522-998877\nSkills: Manual Testing, Selenium, JavaScript, Postman, Bug Tracking, JIRA.\nExperience: 1.5 Years Exp creating automated test suites.`
         }
     ];
 
     recruiterState.candidates = demoCVs.map(cand => {
-        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText);
+        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText, customCriteriaText);
         return {
             ...cand,
             score: analysis.score,
