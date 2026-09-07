@@ -1184,6 +1184,17 @@ function downloadDirectPDF() {
     }
 }
 
+// Utility function to escape HTML special characters
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // ==========================================================================
 // COMPANY ATS CANDIDATE SCREENER LOGIC
 // ==========================================================================
