@@ -1501,8 +1501,8 @@ function parseCandidateText(rawText, fileName) {
     return { name, email, phone };
 }
 
-// --- Evaluate Candidate Match Analysis (JD + Location OR Logic + Experience + Age + Custom Criteria) ---
-function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '', locationText = '', minExpYears = 0, ageRangeStr = 'any') {
+// --- Evaluate Candidate Match Analysis (JD + Location OR Logic + Dynamic Exp + Dynamic Age + Custom Criteria) ---
+function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '', locationText = '', expText = '', ageText = '') {
     const lowerCandidate = candidateText.toLowerCase();
     const matched = [];
     const missing = [];
@@ -1518,18 +1518,49 @@ function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '
         }
     }
 
-    // --- 2. EXPERIENCE EVALUATION ---
-    if (minExpYears > 0) {
-        const expMatch = candidateText.match(/(\d+(?:\.\d+)?)\s*(?:\+|\s*plus)?\s*(?:years?|yrs?)/i);
-        const candExp = expMatch ? parseFloat(expMatch[1]) : 0;
-        if (candExp >= minExpYears) {
-            matched.push(`💼 EXP: ${candExp}+ Yrs (Required ≥${minExpYears})`);
-        } else {
-            missing.push(`💼 EXP: ${candExp > 0 ? candExp + ' Yrs' : 'Not Specified'} (Required ≥${minExpYears})`);
+    // --- 2. DYNAMIC EXPERIENCE EVALUATION ---
+    if (expText && expText.trim().length > 0) {
+        const requiredExpMatch = expText.match(/(\d+(?:\.\d+)?)/);
+        const requiredExp = requiredExpMatch ? parseFloat(requiredExpMatch[1]) : 0;
+        
+        if (requiredExp > 0) {
+            const candExpMatch = candidateText.match(/(\d+(?:\.\d+)?)\s*(?:\+|\s*plus)?\s*(?:years?|yrs?)/i);
+            const candExp = candExpMatch ? parseFloat(candExpMatch[1]) : 0;
+            if (candExp >= requiredExp) {
+                matched.push(`💼 EXP: ${candExp}+ Yrs (Required ≥${requiredExp})`);
+            } else {
+                missing.push(`💼 EXP: ${candExp > 0 ? candExp + ' Yrs' : 'Not Specified'} (Required ≥${requiredExp})`);
+            }
         }
     }
 
-    // --- 3. CUSTOM ROLES & KEYWORDS EVALUATION ---
+    // --- 3. DYNAMIC AGE EVALUATION ---
+    if (ageText && ageText.trim().length > 0 && ageText.toLowerCase() !== 'any') {
+        const rangeMatch = ageText.match(/(\d+)\s*[-to–\s]+\s*(\d+)/);
+        const singleMatch = ageText.match(/(\d+)/);
+
+        let minAge = 18, maxAge = 65;
+        if (rangeMatch) {
+            minAge = parseInt(rangeMatch[1]);
+            maxAge = parseInt(rangeMatch[2]);
+        } else if (singleMatch) {
+            maxAge = parseInt(singleMatch[1]);
+        }
+
+        const candAgeMatch = candidateText.match(/(?:age|years? old|born[:\s]+)?\b([1-6][0-9])\b/i);
+        if (candAgeMatch) {
+            const candAge = parseInt(candAgeMatch[1]);
+            if (candAge >= minAge && candAge <= maxAge) {
+                matched.push(`🎂 AGE: ${candAge} Yrs (Req: ${ageText})`);
+            } else {
+                missing.push(`🎂 AGE: ${candAge} Yrs (Out of range ${ageText})`);
+            }
+        } else {
+            matched.push(`🎂 AGE: Pass (Range ${ageText})`);
+        }
+    }
+
+    // --- 4. CUSTOM ROLES & KEYWORDS EVALUATION ---
     const stopWords = new Set(['and','the','with','for','you','that','this','have','from','will','are','all','our','we','or','is','in','on','at','to','a','an','of','be','by','as','looking','seeking','required','requirements','experience','years']);
     
     const customTerms = customCriteriaText
@@ -1545,7 +1576,7 @@ function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '
         }
     });
 
-    // --- 4. JD KEYWORDS EVALUATION ---
+    // --- 5. JD KEYWORDS EVALUATION ---
     const rawJdTokens = jdText.toLowerCase().match(/[a-z0-9+#.]{2,}/g) || [];
     const uniqueJdKeywords = [...new Set(rawJdTokens.filter(t => !stopWords.has(t) && t.length > 2))];
 
@@ -1559,7 +1590,11 @@ function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '
         }
     });
 
-    const totalCheckPoints = (locationText ? 1 : 0) + (minExpYears > 0 ? 1 : 0) + customTerms.length + uniqueJdKeywords.length;
+    const hasLoc = locationText && locationText.trim().length > 0;
+    const hasExp = expText && expText.trim().length > 0;
+    const hasAge = ageText && ageText.trim().length > 0 && ageText.toLowerCase() !== 'any';
+
+    const totalCheckPoints = (hasLoc ? 1 : 0) + (hasExp ? 1 : 0) + (hasAge ? 1 : 0) + customTerms.length + uniqueJdKeywords.length;
     if (totalCheckPoints === 0) {
         return { score: 0, matchedSkills: [], missingSkills: [] };
     }
@@ -1579,12 +1614,12 @@ function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '
 function recalculateRecruiterMatches() {
     const jdText = document.getElementById('recruiterJD') ? document.getElementById('recruiterJD').value.trim() : '';
     const locationText = document.getElementById('filterLocation') ? document.getElementById('filterLocation').value.trim() : '';
-    const minExpYears = document.getElementById('filterExperience') ? parseFloat(document.getElementById('filterExperience').value) || 0 : 0;
-    const ageRangeStr = document.getElementById('filterAge') ? document.getElementById('filterAge').value : 'any';
+    const expText = document.getElementById('filterExperience') ? document.getElementById('filterExperience').value.trim() : '';
+    const ageText = document.getElementById('filterAge') ? document.getElementById('filterAge').value.trim() : '';
     const customCriteriaText = document.getElementById('customCriteriaInput') ? document.getElementById('customCriteriaInput').value.trim() : '';
 
     recruiterState.candidates.forEach(cand => {
-        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText, customCriteriaText, locationText, minExpYears, ageRangeStr);
+        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText, customCriteriaText, locationText, expText, ageText);
         cand.score = analysis.score;
         cand.matchedSkills = analysis.matchedSkills;
         cand.missingSkills = analysis.missingSkills;
