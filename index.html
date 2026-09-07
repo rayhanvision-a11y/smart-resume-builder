@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Resume Builder & ATS Checker</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+        <div class="brand">
+            <div class="logo-icon"><i class="fa-solid fa-file-contract"></i></div>
+            <div class="brand-text">
+                <h1>SmartResume<span class="highlight">.ats</span></h1>
+                <p>AI-Powered Resume Builder & Keyword Matcher</p>
+            </div>
+        </div>
+
+        <div class="header-controls">
+            <button id="btn-load-sample" class="btn btn-secondary" title="Load demo data to test features">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Load Sample Data
+            </button>
+            <button id="btn-reset" class="btn btn-secondary" title="Clear form data">
+                <i class="fa-solid fa-rotate-left"></i> Reset
+            </button>
+            <div class="dropdown">
+                <button class="btn btn-secondary dropdown-toggle">
+                    <i class="fa-solid fa-file-export"></i> Backup <i class="fa-solid fa-chevron-down"></i>
+                </button>
+                <div class="dropdown-menu">
+                    <button id="btn-export-json"><i class="fa-solid fa-download"></i> Export Data (JSON)</button>
+                    <label for="input-import-json" class="file-label">
+                        <i class="fa-solid fa-upload"></i> Import Data (JSON)
+                        <input type="file" id="input-import-json" accept=".json" style="display:none;">
+                    </label>
+                </div>
+            </div>
+            <button id="btn-export-pdf" class="btn btn-primary btn-glow">
+                <i class="fa-solid fa-file-pdf"></i> Download PDF
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="app-container">
+
+        <!-- Sidebar Navigation / Control Panel -->
+        <aside class="sidebar-tabs">
+            <button class="tab-btn active" data-tab="content-tab">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>Content</span>
+            </button>
+            <button class="tab-btn" data-tab="template-tab">
+                <i class="fa-solid fa-palette"></i>
+                <span>Styling</span>
+            </button>
+            <button class="tab-btn" data-tab="ats-tab">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>ATS Checker</span>
+                <span id="ats-badge" class="badge badge-neutral">0%</span>
+            </button>
+        </aside>
+
+        <!-- Form & Controls Panel (Left Pane) -->
+        <section class="editor-pane">
+            
+            <!-- TAB 1: CONTENT EDITOR -->
+            <div id="content-tab" class="tab-content active">
+                
+                <!-- Accordion: Personal Details -->
+                <div class="accordion-item open">
+                    <div class="accordion-header">
+                        <h3><i class="fa-solid fa-user"></i> Personal Information</h3>
+                        <i class="fa-solid fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="accordion-body">
+                        <div class="form-grid">
+                            <!-- Prominent Photo Upload Box -->
+                            <div class="form-group full-width photo-upload-card">
+                                <label><i class="fa-solid fa-camera"></i> Profile Photo (Optional)</label>
+                                <div class="photo-flex-wrapper">
+                                    <div class="photo-preview-box" id="editorPhotoPreviewBox">
+                                        <i class="fa-solid fa-user placeholder-icon" id="editorPhotoPlaceholder"></i>
+                                        <img id="editorPhotoImg" src="" style="display:none;" alt="Preview">
+                                    </div>
+                                    <div class="photo-action-buttons">
+                                        <input type="file" id="photoInput" accept="image/*" style="display:none;">
+                                        <label for="photoInput" class="btn btn-primary"><i class="fa-solid fa-upload"></i> Upload Photo</label>
+                                        <button id="btnRemovePhoto" class="btn btn-secondary" style="display:none; color:var(--danger);"><i class="fa-solid fa-trash"></i> Remove</button>
+                                        <span class="photo-hint">Supports JPG, PNG, WEBP (Auto-crop to square/circle)</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="photoShape">Photo Shape</label>
+                                <select id="photoShape">
+                                    <option value="photo-circle" selected>Circle (Round)</option>
+                                    <option value="photo-rounded">Rounded Corner</option>
+                                    <option value="photo-square">Square</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="photoSize">Photo Size</label>
+                                <select id="photoSize">
+                                    <option value="64px">Small (64px)</option>
+                                    <option value="80px" selected>Medium (80px)</option>
+                                    <option value="96px">Large (96px)</option>
+                                </select>
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="fullName">Full Name</label>
+                                <input type="text" id="fullName" placeholder="e.g. Tanvir Hossain">
+                            </div>
+                            <div class="form-group">
+                                <label for="jobTitle">Target Job Title</label>
+                                <input type="text" id="jobTitle" placeholder="e.g. Senior Full Stack Engineer">
+                            </div>
+                            <div class="form-group">
+                                <label for="email">Email Address</label>
+                                <input type="email" id="email" placeholder="e.g. tanvir@example.com">
+                            </div>
+                            <div class="form-group">
+                                <label for="phone">Phone Number</label>
+                                <input type="text" id="phone" placeholder="e.g. +880 1700-000000">
+                            </div>
+                            <div class="form-group">
+                                <label for="location">Location</label>
+                                <input type="text" id="location" placeholder="e.g. Dhaka, Bangladesh">
+                            </div>
+                            <div class="form-group">
+                                <label for="linkedin">LinkedIn URL</label>
+                                <input type="text" id="linkedin" placeholder="e.g. linkedin.com/in/tanvir">
+                            </div>
+                            <div class="form-group">
+                                <label for="github">GitHub / Portfolio</label>
+                                <input type="text" id="github" placeholder="e.g. github.com/tanvir">
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="summary">Professional Summary / Bio</label>
+                                <textarea id="summary" rows="4" placeholder="Brief high-impact introduction focusing on core strengths, key achievements, and skills..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Accordion: Work Experience -->
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <h3><i class="fa-solid fa-briefcase"></i> Work Experience</h3>
+                        <i class="fa-solid fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="accordion-body">
+                        <div id="experience-list" class="dynamic-list"></div>
+                        <button id="add-experience-btn" class="btn btn-secondary full-width margin-top">
+                            <i class="fa-solid fa-plus"></i> Add Work Experience
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Accordion: Education -->
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <h3><i class="fa-solid fa-graduation-cap"></i> Education</h3>
+                        <i class="fa-solid fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="accordion-body">
+                        <div id="education-list" class="dynamic-list"></div>
+                        <button id="add-education-btn" class="btn btn-secondary full-width margin-top">
+                            <i class="fa-solid fa-plus"></i> Add Education
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Accordion: Skills -->
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <h3><i class="fa-solid fa-code"></i> Skills & Expertise</h3>
+                        <i class="fa-solid fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="accordion-body">
+                        <div class="form-group">
+                            <label for="skillsTechnical">Technical Skills (comma-separated)</label>
+                            <input type="text" id="skillsTechnical" placeholder="e.g. JavaScript, React, Node.js, Python, PostgreSQL, Docker, Git">
+                        </div>
+                        <div class="form-group">
+                            <label for="skillsSoft">Soft Skills & Methodologies</label>
+                            <input type="text" id="skillsSoft" placeholder="e.g. Agile, Leadership, System Architecture, Code Review, Problem Solving">
+                        </div>
+                        <div class="form-group">
+                            <label for="skillsTools">Tools & Platforms</label>
+                            <input type="text" id="skillsTools" placeholder="e.g. VS Code, AWS, Vercel, Figma, Postman, Linux">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Accordion: Projects -->
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <h3><i class="fa-solid fa-folder-open"></i> Featured Projects</h3>
+                        <i class="fa-solid fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="accordion-body">
+                        <div id="projects-list" class="dynamic-list"></div>
+                        <button id="add-project-btn" class="btn btn-secondary full-width margin-top">
+                            <i class="fa-solid fa-plus"></i> Add Project
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Accordion: Certifications & Achievements -->
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <h3><i class="fa-solid fa-award"></i> Certifications & Honors</h3>
+                        <i class="fa-solid fa-chevron-down toggle-icon"></i>
+                    </div>
+                    <div class="accordion-body">
+                        <div id="certifications-list" class="dynamic-list"></div>
+                        <button id="add-cert-btn" class="btn btn-secondary full-width margin-top">
+                            <i class="fa-solid fa-plus"></i> Add Certification
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB 2: STYLING & TEMPLATE -->
+            <div id="template-tab" class="tab-content">
+                <div class="section-card">
+                    <h3>Select Resume Template</h3>
+                    <div class="template-selector">
+                        <label class="template-option active">
+                            <input type="radio" name="template" value="template-modern" checked>
+                            <div class="template-preview t-modern">
+                                <div class="tp-bar"></div>
+                                <div class="tp-lines"></div>
+                            </div>
+                            <span>Modern Tech</span>
+                        </label>
+                        <label class="template-option">
+                            <input type="radio" name="template" value="template-classic">
+                            <div class="template-preview t-classic">
+                                <div class="tp-head"></div>
+                                <div class="tp-lines"></div>
+                            </div>
+                            <span>Executive Classic</span>
+                        </label>
+                        <label class="template-option">
+                            <input type="radio" name="template" value="template-minimal">
+                            <div class="template-preview t-minimal">
+                                <div class="tp-lines"></div>
+                            </div>
+                            <span>Minimal Clean</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="section-card margin-top">
+                    <h3>Design Customization</h3>
+                    <div class="form-grid">
+                        <div class="form-group full-width">
+                            <label>Quick Color Theme Presets</label>
+                            <div class="color-preset-container">
+                                <span class="color-swatch" style="background:#3b82f6" data-color="#3b82f6" title="Ocean Blue"></span>
+                                <span class="color-swatch" style="background:#10b981" data-color="#10b981" title="Emerald Green"></span>
+                                <span class="color-swatch" style="background:#8b5cf6" data-color="#8b5cf6" title="Royal Purple"></span>
+                                <span class="color-swatch" style="background:#ef4444" data-color="#ef4444" title="Crimson Red"></span>
+                                <span class="color-swatch" style="background:#f97316" data-color="#f97316" title="Sunset Orange"></span>
+                                <span class="color-swatch" style="background:#475569" data-color="#475569" title="Sleek Slate"></span>
+                                <span class="color-swatch" style="background:#0284c7" data-color="#0284c7" title="Sky Blue"></span>
+                                <span class="color-swatch" style="background:#0d9488" data-color="#0d9488" title="Teal"></span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="themeColor">Custom Accent Color</label>
+                            <div class="color-picker-wrapper">
+                                <input type="color" id="themeColor" value="#3b82f6">
+                                <span id="colorHex">#3b82f6</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="fontFamily">Font Family</label>
+                            <select id="fontFamily">
+                                <option value="'Inter', sans-serif" selected>Inter (Modern Sans)</option>
+                                <option value="'Outfit', sans-serif">Outfit (Geometric)</option>
+                                <option value="'Lora', serif">Lora (Elegant Serif)</option>
+                                <option value="'Roboto Mono', monospace">Roboto Mono (Tech / Code)</option>
+                            </select>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="fontSize">Base Font Size</label>
+                            <select id="fontSize">
+                                <option value="13px">Small (13px)</option>
+                                <option value="14px" selected>Medium (14px - Recommended)</option>
+                                <option value="15px">Large (15px)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: ATS SCORE & OPTIMIZER -->
+            <div id="ats-tab" class="tab-content">
+                <div class="ats-container">
+                    <div class="ats-header-card">
+                        <div class="ats-gauge">
+                            <svg viewBox="0 0 36 36" class="circular-chart blue">
+                                <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path id="ats-circle-path" class="circle" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <text x="18" y="20.35" class="percentage" id="ats-percentage-text">0%</text>
+                            </svg>
+                        </div>
+                        <div class="ats-summary">
+                            <h3 id="ats-status-title">ATS Optimization Score</h3>
+                            <p id="ats-status-desc">Paste a job description below to analyze how well your resume matches ATS filters and recruiter keywords.</p>
+                        </div>
+                    </div>
+
+                    <div class="form-group margin-top">
+                        <label for="job-description-input"><i class="fa-solid fa-paste"></i> Target Job Description (Paste Here)</label>
+                        <textarea id="job-description-input" rows="6" placeholder="Paste the job requirements, skills, and qualifications from LinkedIn / Indeed / company page..."></textarea>
+                    </div>
+
+                    <!-- Analysis Output Cards -->
+                    <div class="ats-metrics-grid">
+                        <div class="ats-metric-card">
+                            <h4><i class="fa-solid fa-check-circle color-success"></i> Matched Keywords (<span id="count-matched">0</span>)</h4>
+                            <div id="list-matched-keywords" class="tag-cloud"></div>
+                        </div>
+
+                        <div class="ats-metric-card">
+                            <h4><i class="fa-solid fa-triangle-exclamation color-warning"></i> Missing High-Impact Terms (<span id="count-missing">0</span>)</h4>
+                            <div id="list-missing-keywords" class="tag-cloud"></div>
+                        </div>
+
+                        <div class="ats-metric-card full-width">
+                            <h4><i class="fa-solid fa-list-check"></i> Formatting & Action-Verb Feedback</h4>
+                            <ul id="list-ats-feedback" class="feedback-list">
+                                <li>Paste a job description above to generate AI key-term matching feedback.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Live Resume Preview (Right Pane) -->
+        <section class="preview-pane">
+            <div class="preview-toolbar">
+                <div class="toolbar-info">
+                    <span><i class="fa-solid fa-eye"></i> Live A4 Print Preview</span>
+                </div>
+                <div class="toolbar-actions">
+                    <button id="zoom-out-btn" class="btn-icon" title="Zoom Out"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                    <span id="zoom-level">100%</span>
+                    <button id="zoom-in-btn" class="btn-icon" title="Zoom In"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                </div>
+            </div>
+
+            <div class="paper-wrapper">
+                <!-- Printable A4 Resume Canvas -->
+                <div id="resume-canvas" class="resume-paper template-modern">
+                    
+                    <!-- Resume Header -->
+                    <header class="resume-header">
+                        <div class="header-flex">
+                            <div class="header-main-info">
+                                <h1 id="pv-name">Your Full Name</h1>
+                                <h2 id="pv-title">Target Job Title</h2>
+                                <div class="contact-line" id="pv-contact">
+                                    <!-- Contact items rendered dynamically -->
+                                </div>
+                            </div>
+                            <div id="pv-photo-container" class="header-photo-wrapper" style="display:none;">
+                                <img id="pv-photo" src="" alt="Profile Photo">
+                            </div>
+                        </div>
+                    </header>
+
+                    <!-- Summary Section -->
+                    <section class="resume-section" id="pv-sec-summary">
+                        <h3 class="section-title">Professional Summary</h3>
+                        <p id="pv-summary" class="summary-text"></p>
+                    </section>
+
+                    <!-- Work Experience Section -->
+                    <section class="resume-section" id="pv-sec-experience">
+                        <h3 class="section-title">Work Experience</h3>
+                        <div id="pv-experience" class="timeline"></div>
+                    </section>
+
+                    <!-- Projects Section -->
+                    <section class="resume-section" id="pv-sec-projects">
+                        <h3 class="section-title">Key Projects</h3>
+                        <div id="pv-projects" class="projects-grid"></div>
+                    </section>
+
+                    <!-- Education Section -->
+                    <section class="resume-section" id="pv-sec-education">
+                        <h3 class="section-title">Education</h3>
+                        <div id="pv-education" class="education-grid"></div>
+                    </section>
+
+                    <!-- Skills Section -->
+                    <section class="resume-section" id="pv-sec-skills">
+                        <h3 class="section-title">Skills & Competencies</h3>
+                        <div id="pv-skills" class="skills-block"></div>
+                    </section>
+
+                    <!-- Certifications Section -->
+                    <section class="resume-section" id="pv-sec-certifications">
+                        <h3 class="section-title">Certifications & Honors</h3>
+                        <div id="pv-certifications" class="certifications-list"></div>
+                    </section>
+
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script src="app.js"></script>
+</body>
+</html>
