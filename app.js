@@ -488,24 +488,35 @@ function initEventListeners() {
         }
     });
 
-    // Export PDF (Print)
-    document.getElementById('btn-export-pdf').addEventListener('click', () => {
-        const rCanvas = document.getElementById('resume-canvas');
-        const cCanvas = document.getElementById('cover-letter-canvas');
-        const oldRTransform = rCanvas ? rCanvas.style.transform : '';
-        const oldCTransform = cCanvas ? cCanvas.style.transform : '';
+    // Print Button Handler
+    const printBtn = document.getElementById('btn-print');
+    if (printBtn) {
+        printBtn.addEventListener('click', () => {
+            const rCanvas = document.getElementById('resume-canvas');
+            const cCanvas = document.getElementById('cover-letter-canvas');
+            const oldRTransform = rCanvas ? rCanvas.style.transform : '';
+            const oldCTransform = cCanvas ? cCanvas.style.transform : '';
 
-        if (rCanvas) rCanvas.style.transform = 'none';
-        if (cCanvas) cCanvas.style.transform = 'none';
+            if (rCanvas) rCanvas.style.transform = 'none';
+            if (cCanvas) cCanvas.style.transform = 'none';
 
-        window.print();
+            window.print();
 
-        setTimeout(() => {
-            if (rCanvas) rCanvas.style.transform = oldRTransform;
-            if (cCanvas) cCanvas.style.transform = oldCTransform;
-            applyZoom();
-        }, 300);
-    });
+            setTimeout(() => {
+                if (rCanvas) rCanvas.style.transform = oldRTransform;
+                if (cCanvas) cCanvas.style.transform = oldCTransform;
+                applyZoom();
+            }, 300);
+        });
+    }
+
+    // Direct PDF File Download Handler (html2pdf.js)
+    const downloadPdfBtn = document.getElementById('btn-download-pdf');
+    if (downloadPdfBtn) {
+        downloadPdfBtn.addEventListener('click', () => {
+            downloadDirectPDF();
+        });
+    }
 
     // Preview Zoom Controls
     document.getElementById('zoom-in-btn').addEventListener('click', () => {
@@ -1073,5 +1084,55 @@ function updateATSAnalysis() {
         addFeedback(true, "Measurable impact metrics (% numbers, latency drops, revenue/user counts) found.");
     } else {
         addFeedback(false, "Quantify your achievements with numbers (e.g. 'Improved performance by 35%', 'Served 100k users').");
+    }
+}
+
+// --- Direct PDF File Downloader (html2pdf.js) ---
+function downloadDirectPDF() {
+    // Determine active canvas (Resume or Cover Letter)
+    const coverCanvas = document.getElementById('cover-letter-canvas');
+    const resumeCanvas = document.getElementById('resume-canvas');
+    
+    let activeCanvas = resumeCanvas;
+    let isCover = false;
+
+    if (coverCanvas && coverCanvas.style.display !== 'none') {
+        activeCanvas = coverCanvas;
+        isCover = true;
+    }
+
+    if (!activeCanvas) return;
+
+    // Reset zoom scale during capture for high DPI resolution
+    const oldTransform = activeCanvas.style.transform;
+    activeCanvas.style.transform = 'none';
+
+    const docType = isCover ? 'Cover_Letter' : 'Resume';
+    const rawName = state.personalInfo.fullName || 'Candidate';
+    const fileName = `${rawName.trim().replace(/\s+/g, '_')}_${docType}.pdf`;
+
+    const options = {
+        margin: [8, 8, 8, 8],
+        filename: fileName,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    if (typeof html2pdf !== 'undefined') {
+        html2pdf().set(options).from(activeCanvas).save().then(() => {
+            activeCanvas.style.transform = oldTransform;
+            applyZoom();
+        }).catch(err => {
+            console.error("PDF Export error:", err);
+            activeCanvas.style.transform = oldTransform;
+            applyZoom();
+            window.print();
+        });
+    } else {
+        // Fallback to window.print() if CDN offline
+        window.print();
+        activeCanvas.style.transform = oldTransform;
+        applyZoom();
     }
 }
