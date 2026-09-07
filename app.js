@@ -1228,6 +1228,23 @@ function initModeSwitcher() {
     }
 }
 
+// Quick Add Location Chip helper
+function addLocationChip(city) {
+    const input = document.getElementById('filterLocation');
+    if (!input) return;
+    let val = input.value.trim();
+    if (!val) {
+        input.value = city;
+    } else {
+        const cities = val.split(',').map(c => c.trim()).filter(Boolean);
+        if (!cities.includes(city)) {
+            cities.push(city);
+            input.value = cities.join(', ');
+        }
+    }
+    recalculateRecruiterMatches();
+}
+
 // Quick Add Custom Criteria Chip helper
 function addCustomCriteriaChip(term) {
     const input = document.getElementById('customCriteriaInput');
@@ -1245,27 +1262,63 @@ function addCustomCriteriaChip(term) {
     recalculateRecruiterMatches();
 }
 
+// Clear / Reset Screener Function
+function clearRecruiterScreener() {
+    recruiterState.candidates = [];
+    stagedPdfFiles = [];
+
+    const jdInput = document.getElementById('recruiterJD');
+    const filterLocation = document.getElementById('filterLocation');
+    const filterExperience = document.getElementById('filterExperience');
+    const filterAge = document.getElementById('filterAge');
+    const customCriteriaInput = document.getElementById('customCriteriaInput');
+    const bulkPdfInput = document.getElementById('bulkPdfInput');
+
+    if (jdInput) jdInput.value = '';
+    if (filterLocation) filterLocation.value = '';
+    if (filterExperience) filterExperience.value = '0';
+    if (filterAge) filterAge.value = 'any';
+    if (customCriteriaInput) customCriteriaInput.value = '';
+    if (bulkPdfInput) bulkPdfInput.value = '';
+
+    updateUploadStatusText();
+    renderRecruiterLeaderboard();
+}
+
 // Global Staged Files Queue
 let stagedPdfFiles = [];
 
 // --- Initialize Recruiter Portal Listeners ---
 function initRecruiterPortal() {
     const jdInput = document.getElementById('recruiterJD');
+    const filterLocation = document.getElementById('filterLocation');
+    const filterExperience = document.getElementById('filterExperience');
+    const filterAge = document.getElementById('filterAge');
     const customCriteriaInput = document.getElementById('customCriteriaInput');
     const bulkPdfInput = document.getElementById('bulkPdfInput');
     const dropzone = document.getElementById('bulkUploadDropzone');
     const minScoreSlider = document.getElementById('minScoreFilter');
     const btnStartScreening = document.getElementById('btn-start-screening');
     const btnLoadDemo = document.getElementById('btn-load-recruiter-demo');
+    const btnClearRecruiter = document.getElementById('btn-clear-recruiter');
     const btnExportCSV = document.getElementById('btn-export-recruiter-csv');
     const btnCloseModal = document.getElementById('btnCloseModal');
 
-    // JD text & Custom Criteria change re-computes matches
-    if (jdInput) {
-        jdInput.addEventListener('input', () => recalculateRecruiterMatches());
-    }
-    if (customCriteriaInput) {
-        customCriteriaInput.addEventListener('input', () => recalculateRecruiterMatches());
+    // Input listeners for real-time match recalculation
+    [jdInput, filterLocation, customCriteriaInput].forEach(elem => {
+        if (elem) elem.addEventListener('input', () => recalculateRecruiterMatches());
+    });
+    [filterExperience, filterAge].forEach(elem => {
+        if (elem) elem.addEventListener('change', () => recalculateRecruiterMatches());
+    });
+
+    // Clear All Button Listener
+    if (btnClearRecruiter) {
+        btnClearRecruiter.addEventListener('click', () => {
+            if (confirm("Are you sure you want to clear all candidate results and reset the screener form?")) {
+                clearRecruiterScreener();
+            }
+        });
     }
 
     // Min score slider
@@ -1448,30 +1501,42 @@ function parseCandidateText(rawText, fileName) {
     return { name, email, phone };
 }
 
-// --- Evaluate Candidate Match Analysis (JD + Custom Criteria) ---
-function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '') {
-    const combinedText = (jdText + ' ' + customCriteriaText).trim();
-    if (!combinedText) {
-        return { score: 0, matchedSkills: [], missingSkills: [] };
+// --- Evaluate Candidate Match Analysis (JD + Location OR Logic + Experience + Age + Custom Criteria) ---
+function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '', locationText = '', minExpYears = 0, ageRangeStr = 'any') {
+    const lowerCandidate = candidateText.toLowerCase();
+    const matched = [];
+    const missing = [];
+
+    // --- 1. LOCATION EVALUATION (OR LOGIC: Matches if candidate is from ANY of the specified cities) ---
+    if (locationText && locationText.trim().length > 0) {
+        const locations = locationText.split(',').map(l => l.trim().toLowerCase()).filter(Boolean);
+        const matchedLoc = locations.find(loc => lowerCandidate.includes(loc));
+        if (matchedLoc) {
+            matched.push(`📍 LOC: ${matchedLoc.toUpperCase()} (Matched)`);
+        } else {
+            missing.push(`📍 LOC: (${locations.join(' OR ').toUpperCase()})`);
+        }
     }
 
+    // --- 2. EXPERIENCE EVALUATION ---
+    if (minExpYears > 0) {
+        const expMatch = candidateText.match(/(\d+(?:\.\d+)?)\s*(?:\+|\s*plus)?\s*(?:years?|yrs?)/i);
+        const candExp = expMatch ? parseFloat(expMatch[1]) : 0;
+        if (candExp >= minExpYears) {
+            matched.push(`💼 EXP: ${candExp}+ Yrs (Required ≥${minExpYears})`);
+        } else {
+            missing.push(`💼 EXP: ${candExp > 0 ? candExp + ' Yrs' : 'Not Specified'} (Required ≥${minExpYears})`);
+        }
+    }
+
+    // --- 3. CUSTOM ROLES & KEYWORDS EVALUATION ---
     const stopWords = new Set(['and','the','with','for','you','that','this','have','from','will','are','all','our','we','or','is','in','on','at','to','a','an','of','be','by','as','looking','seeking','required','requirements','experience','years']);
     
-    // Extract keywords from JD
-    const rawJdTokens = jdText.toLowerCase().match(/[a-z0-9+#.]{2,}/g) || [];
-    const uniqueJdKeywords = [...new Set(rawJdTokens.filter(t => !stopWords.has(t) && t.length > 2))];
-
-    // Extract custom criteria terms (e.g. Pabna, Web Developer, Network Eng, Technician, 3+ Years)
     const customTerms = customCriteriaText
         .split(',')
         .map(t => t.trim().toLowerCase())
         .filter(t => t.length > 0 && !stopWords.has(t));
 
-    const lowerCandidate = candidateText.toLowerCase();
-    const matched = [];
-    const missing = [];
-
-    // Check Custom Terms (Must-Have Criteria get priority!)
     customTerms.forEach(term => {
         if (lowerCandidate.includes(term)) {
             matched.push(`⭐ ${term.toUpperCase()}`);
@@ -1480,7 +1545,10 @@ function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '
         }
     });
 
-    // Check JD Keywords
+    // --- 4. JD KEYWORDS EVALUATION ---
+    const rawJdTokens = jdText.toLowerCase().match(/[a-z0-9+#.]{2,}/g) || [];
+    const uniqueJdKeywords = [...new Set(rawJdTokens.filter(t => !stopWords.has(t) && t.length > 2))];
+
     uniqueJdKeywords.forEach(kw => {
         if (!customTerms.includes(kw)) {
             if (lowerCandidate.includes(kw)) {
@@ -1491,13 +1559,13 @@ function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '
         }
     });
 
-    const totalKeywords = customTerms.length + uniqueJdKeywords.length;
-    if (totalKeywords === 0) {
+    const totalCheckPoints = (locationText ? 1 : 0) + (minExpYears > 0 ? 1 : 0) + customTerms.length + uniqueJdKeywords.length;
+    if (totalCheckPoints === 0) {
         return { score: 0, matchedSkills: [], missingSkills: [] };
     }
 
     const totalMatchedCount = matched.length;
-    const matchRatio = totalMatchedCount / totalKeywords;
+    const matchRatio = totalMatchedCount / totalCheckPoints;
     const score = Math.min(100, Math.round(matchRatio * 100));
 
     return {
@@ -1507,13 +1575,16 @@ function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '
     };
 }
 
-// --- Recalculate all Candidate Scores when JD or Custom Criteria changes ---
+// --- Recalculate all Candidate Scores when any filter changes ---
 function recalculateRecruiterMatches() {
     const jdText = document.getElementById('recruiterJD') ? document.getElementById('recruiterJD').value.trim() : '';
+    const locationText = document.getElementById('filterLocation') ? document.getElementById('filterLocation').value.trim() : '';
+    const minExpYears = document.getElementById('filterExperience') ? parseFloat(document.getElementById('filterExperience').value) || 0 : 0;
+    const ageRangeStr = document.getElementById('filterAge') ? document.getElementById('filterAge').value : 'any';
     const customCriteriaText = document.getElementById('customCriteriaInput') ? document.getElementById('customCriteriaInput').value.trim() : '';
 
     recruiterState.candidates.forEach(cand => {
-        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText, customCriteriaText);
+        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText, customCriteriaText, locationText, minExpYears, ageRangeStr);
         cand.score = analysis.score;
         cand.matchedSkills = analysis.matchedSkills;
         cand.missingSkills = analysis.missingSkills;
@@ -1666,17 +1737,26 @@ function openCandidateModal(candId) {
 // --- Load 5 Realistic Demo Candidate Resumes ---
 function loadDemoRecruiterCandidates() {
     const jdInput = document.getElementById('recruiterJD');
+    const filterLocation = document.getElementById('filterLocation');
+    const filterExperience = document.getElementById('filterExperience');
     const customCriteriaInput = document.getElementById('customCriteriaInput');
 
     if (jdInput && (!jdInput.value || jdInput.value.trim().length === 0)) {
         jdInput.value = `We are hiring a Senior Web Developer & Software Engineer proficient in React, Node.js, Python, PostgreSQL, Docker, AWS, REST APIs, and Agile methodologies with at least 3 years experience.`;
     }
 
+    if (filterLocation && (!filterLocation.value || filterLocation.value.trim().length === 0)) {
+        filterLocation.value = `Dhaka, Pabna`;
+    }
+
     if (customCriteriaInput && (!customCriteriaInput.value || customCriteriaInput.value.trim().length === 0)) {
-        customCriteriaInput.value = `Pabna, Web Developer, 3+ Years Exp, B.Sc`;
+        customCriteriaInput.value = `Web Developer, B.Sc`;
     }
 
     const jdText = jdInput ? jdInput.value : '';
+    const locationText = filterLocation ? filterLocation.value : '';
+    const minExpYears = filterExperience ? parseFloat(filterExperience.value) || 0 : 0;
+    const ageRangeStr = document.getElementById('filterAge') ? document.getElementById('filterAge').value : 'any';
     const customCriteriaText = customCriteriaInput ? customCriteriaInput.value : '';
 
     const demoCVs = [
@@ -1694,7 +1774,7 @@ function loadDemoRecruiterCandidates() {
             fileName: 'Sharmin_Akter_Frontend_Dev.pdf',
             email: 'sharmin.frontend@example.com',
             phone: '+880 1819-876543',
-            fullText: `Sharmin Akter - Web Developer & Frontend Engineer\nLocation: Pabna, Bangladesh | Degree: B.Sc\nEmail: sharmin.frontend@example.com | Phone: +880 1819-876543\nSkills: React.js, JavaScript, HTML5, CSS3, Tailwind CSS, REST APIs, Git, Figma, Redux.\nExperience: 3+ Years Exp building responsive web interfaces and user portals.`
+            fullText: `Sharmin Akter - Web Developer & Frontend Engineer\nLocation: Dhaka, Bangladesh | Degree: B.Sc\nEmail: sharmin.frontend@example.com | Phone: +880 1819-876543\nSkills: React.js, JavaScript, HTML5, CSS3, Tailwind CSS, REST APIs, Git, Figma, Redux.\nExperience: 3+ Years Exp building responsive web interfaces and user portals.`
         },
         {
             id: 'demo-3',
@@ -1723,7 +1803,7 @@ function loadDemoRecruiterCandidates() {
     ];
 
     recruiterState.candidates = demoCVs.map(cand => {
-        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText, customCriteriaText);
+        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText, customCriteriaText, locationText, minExpYears, ageRangeStr);
         return {
             ...cand,
             score: analysis.score,

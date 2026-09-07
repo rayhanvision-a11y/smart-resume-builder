@@ -548,6 +548,9 @@
                 <button id="btn-load-recruiter-demo" class="btn btn-secondary">
                     <i class="fa-solid fa-users-viewfinder"></i> Load 5 Demo Candidates
                 </button>
+                <button id="btn-clear-recruiter" class="btn btn-secondary" title="Clear all candidates and reset form" style="color: var(--danger);">
+                    <i class="fa-solid fa-trash-can"></i> Clear All
+                </button>
                 <button id="btn-export-recruiter-csv" class="btn btn-secondary">
                     <i class="fa-solid fa-file-csv"></i> Export CSV
                 </button>
@@ -558,30 +561,60 @@
         </div>
 
         <div class="recruiter-grid">
-            <!-- Left Pane: Job Requirements & Custom Criteria & Bulk PDF Uploader -->
+            <!-- Left Pane: Job Description & Structured Criteria & Bulk PDF Uploader -->
             <div class="recruiter-card">
-                <h3><i class="fa-solid fa-file-signature"></i> 1. Job Description & Custom Requirements</h3>
+                <h3><i class="fa-solid fa-sliders"></i> 1. Job Description & Structured Criteria</h3>
+                
                 <div class="form-group margin-top">
                     <label for="recruiterJD">Job Requirements & Technical Stack</label>
-                    <textarea id="recruiterJD" rows="5" placeholder="Paste job requirements here... e.g. We are hiring a Full Stack Developer proficient in React, Node.js, Python, PostgreSQL, AWS..."></textarea>
+                    <textarea id="recruiterJD" rows="4" placeholder="Paste job requirements here... e.g. We are hiring a Web Developer proficient in React, Node.js, Python, PostgreSQL..."></textarea>
                 </div>
 
-                <!-- Custom Mandatory Criteria Input -->
-                <div class="form-group margin-top">
-                    <label for="customCriteriaInput">
-                        <i class="fa-solid fa-filter color-blue"></i> Must-Have Custom Criteria (Comma-separated)
-                    </label>
-                    <input type="text" id="customCriteriaInput" placeholder="e.g. Pabna, Web Developer, 3+ Years, Network Eng, Technician, B.Sc">
-                    <div class="criteria-helper margin-top-sm">
-                        <span class="criteria-label">Quick Add Filter Chips:</span>
-                        <div class="criteria-chips">
-                            <span class="chip-item" onclick="addCustomCriteriaChip('Pabna')">+ Pabna</span>
-                            <span class="chip-item" onclick="addCustomCriteriaChip('Dhaka')">+ Dhaka</span>
-                            <span class="chip-item" onclick="addCustomCriteriaChip('Web Developer')">+ Web Developer</span>
-                            <span class="chip-item" onclick="addCustomCriteriaChip('Network Eng')">+ Network Eng</span>
-                            <span class="chip-item" onclick="addCustomCriteriaChip('Technician')">+ Technician</span>
-                            <span class="chip-item" onclick="addCustomCriteriaChip('3+ Years Exp')">+ 3+ Years Exp</span>
-                            <span class="chip-item" onclick="addCustomCriteriaChip('B.Sc')">+ B.Sc</span>
+                <!-- Structured Filters Grid -->
+                <div class="form-grid margin-top" style="gap: 12px;">
+                    <div class="form-group full-width">
+                        <label for="filterLocation">
+                            <i class="fa-solid fa-location-dot color-blue"></i> Preferred Location(s) (OR Logic: Matches ANY city)
+                        </label>
+                        <input type="text" id="filterLocation" placeholder="e.g. Dhaka, Pabna (Matches 100% if candidate is from Dhaka OR Pabna)">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="filterExperience"><i class="fa-solid fa-briefcase color-warning"></i> Min. Experience</label>
+                        <select id="filterExperience">
+                            <option value="0" selected>Any Experience</option>
+                            <option value="1">1+ Year</option>
+                            <option value="2">2+ Years</option>
+                            <option value="3">3+ Years</option>
+                            <option value="5">5+ Years</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="filterAge"><i class="fa-solid fa-user-clock color-success"></i> Age Range</label>
+                        <select id="filterAge">
+                            <option value="any" selected>Any Age</option>
+                            <option value="18-35">18 - 35 Years</option>
+                            <option value="20-30">20 - 30 Years</option>
+                            <option value="18-45">18 - 45 Years</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label for="customCriteriaInput">
+                            <i class="fa-solid fa-tags color-blue"></i> Specific Roles & Keywords
+                        </label>
+                        <input type="text" id="customCriteriaInput" placeholder="e.g. Web Developer, Network Eng, Technician, B.Sc">
+                        <div class="criteria-helper margin-top-sm">
+                            <span class="criteria-label">Quick Add Filter Chips:</span>
+                            <div class="criteria-chips">
+                                <span class="chip-item" onclick="addLocationChip('Pabna')">+ Loc: Pabna</span>
+                                <span class="chip-item" onclick="addLocationChip('Dhaka')">+ Loc: Dhaka</span>
+                                <span class="chip-item" onclick="addCustomCriteriaChip('Web Developer')">+ Web Developer</span>
+                                <span class="chip-item" onclick="addCustomCriteriaChip('Network Eng')">+ Network Eng</span>
+                                <span class="chip-item" onclick="addCustomCriteriaChip('Technician')">+ Technician</span>
+                                <span class="chip-item" onclick="addCustomCriteriaChip('B.Sc')">+ B.Sc</span>
+                            </div>
                         </div>
                     </div>
                 </div>
