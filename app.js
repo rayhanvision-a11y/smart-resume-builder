@@ -119,7 +119,19 @@ function initTabs() {
 
             btn.classList.add('active');
             const targetId = btn.getAttribute('data-tab');
-            document.getElementById(targetId).classList.add('active');
+            const targetElem = document.getElementById(targetId);
+            if (targetElem) {
+                targetElem.classList.add('active');
+            }
+
+            // Sync Preview Canvas with Tab Selection
+            const docBtnCover = document.getElementById('doc-btn-cover');
+            const docBtnResume = document.getElementById('doc-btn-resume');
+            if (targetId === 'cover-letter-tab') {
+                if (docBtnCover) docBtnCover.click();
+            } else {
+                if (docBtnResume) docBtnResume.click();
+            }
         });
     });
 }
