@@ -573,10 +573,45 @@
                 <!-- Structured Filters Grid -->
                 <div class="form-grid margin-top" style="gap: 12px;">
                     <div class="form-group full-width">
-                        <label for="filterLocation">
-                            <i class="fa-solid fa-location-dot color-blue"></i> Preferred Location(s) (OR Logic: Matches ANY city)
+                        <label for="filterLocationInput">
+                            <i class="fa-solid fa-location-dot color-blue"></i> Preferred Location(s) (OR Logic: Matches ANY selected city)
                         </label>
-                        <input type="text" id="filterLocation" placeholder="e.g. Dhaka, Pabna (Matches 100% if candidate is from Dhaka OR Pabna)">
+                        <div class="smart-location-box" id="smartLocationWrapper">
+                            <div class="location-chips-container" id="locationChipsContainer">
+                                <!-- Dynamic location chips rendered here -->
+                            </div>
+                            <input type="text" id="filterLocationInput" placeholder="Type city (e.g. Dhaka, Pabna) and press Enter or comma...">
+                        </div>
+                        <div class="criteria-helper margin-top-sm">
+                            <span class="criteria-label">Quick Add Popular Cities:</span>
+                            <div class="criteria-chips">
+                                <span class="chip-item" onclick="addLocationChip('Dhaka')">+ Dhaka</span>
+                                <span class="chip-item" onclick="addLocationChip('Pabna')">+ Pabna</span>
+                                <span class="chip-item" onclick="addLocationChip('Chittagong')">+ Chittagong</span>
+                                <span class="chip-item" onclick="addLocationChip('Sylhet')">+ Sylhet</span>
+                                <span class="chip-item" onclick="addLocationChip('Rajshahi')">+ Rajshahi</span>
+                                <span class="chip-item" onclick="addLocationChip('Khulna')">+ Khulna</span>
+                                <span class="chip-item" onclick="addLocationChip('Remote')">+ Remote</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="filterEducation"><i class="fa-solid fa-graduation-cap color-blue"></i> Min. Education Level</label>
+                        <select id="filterEducation" style="background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px 12px; border-radius: 8px; width: 100%; font-size: 13px;">
+                            <option value="any">Any Education Level</option>
+                            <option value="class_5">Class 5 Pass</option>
+                            <option value="class_8">Class 8 Pass</option>
+                            <option value="ssc">SSC Pass</option>
+                            <option value="hsc">HSC Pass</option>
+                            <option value="diploma">Diploma in Engineering</option>
+                            <option value="degree">Degree Pass</option>
+                            <option value="honours">Honours Pass</option>
+                            <option value="bsc_eng">B.Sc in Engineering</option>
+                            <option value="masters">Masters Pass</option>
+                            <option value="msc_eng">M.Sc in Engineering</option>
+                            <option value="phd">Ph.D. / Doctorate</option>
+                        </select>
                     </div>
 
                     <div class="form-group">
@@ -585,8 +620,15 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="filterAge"><i class="fa-solid fa-user-clock color-success"></i> Age Limit / Range (Dynamic)</label>
-                        <input type="text" id="filterAge" placeholder="e.g. 18-35, 20-30, 35 (Type any range)">
+                        <label for="filterAgeMin"><i class="fa-solid fa-user-clock color-success"></i> Age Limit / Range</label>
+                        <div class="age-range-picker">
+                            <input type="number" id="filterAgeMin" placeholder="Min" min="15" max="75">
+                            <span class="age-separator">-</span>
+                            <input type="number" id="filterAgeMax" placeholder="Max" min="15" max="75">
+                            <button type="button" id="btnApplyAge" class="btn-age-apply" title="Apply Age Range">
+                                <i class="fa-solid fa-caret-right"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="form-group full-width">
@@ -597,8 +639,6 @@
                         <div class="criteria-helper margin-top-sm">
                             <span class="criteria-label">Quick Add Filter Chips:</span>
                             <div class="criteria-chips">
-                                <span class="chip-item" onclick="addLocationChip('Pabna')">+ Loc: Pabna</span>
-                                <span class="chip-item" onclick="addLocationChip('Dhaka')">+ Loc: Dhaka</span>
                                 <span class="chip-item" onclick="addCustomCriteriaChip('Web Developer')">+ Web Developer</span>
                                 <span class="chip-item" onclick="addCustomCriteriaChip('Network Eng')">+ Network Eng</span>
                                 <span class="chip-item" onclick="addCustomCriteriaChip('Technician')">+ Technician</span>

@@ -1552,4 +1552,150 @@ input[type="color"]::-webkit-color-swatch {
     background: rgba(59, 130, 246, 0.15);
 }
 
+/* ==========================================================================
+   AGE RANGE PICKER & SMART MULTI-LOCATION SELECTOR STYLES
+   ========================================================================== */
+
+/* 1. Age Range Picker (Exact Match to User Mockup Image) */
+.age-range-picker {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-card);
+    padding: 2px;
+    border-radius: 8px;
+}
+
+.age-range-picker input[type="number"] {
+    width: 70px;
+    height: 38px;
+    padding: 0 10px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.age-range-picker input[type="number"]:focus {
+    border-color: #f97316;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.2);
+}
+
+/* Remove number input spinners */
+.age-range-picker input[type="number"]::-webkit-inner-spin-button,
+.age-range-picker input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.age-separator {
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 14px;
+    user-select: none;
+}
+
+.btn-age-apply {
+    width: 38px;
+    height: 38px;
+    background: #f97316; /* Warm Orange matching user image */
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 6px rgba(249, 115, 22, 0.3);
+}
+
+.btn-age-apply:hover {
+    background: #ea580c;
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.4);
+}
+
+.btn-age-apply:active {
+    transform: scale(0.96);
+}
+
+/* 2. Smart Location Tag Selector */
+.smart-location-box {
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 6px 10px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    transition: border-color 0.2s ease;
+}
+
+.smart-location-box:focus-within {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.location-chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.loc-chip {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(16, 185, 129, 0.2));
+    border: 1px solid rgba(59, 130, 246, 0.4);
+    color: #60a5fa;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    animation: fadeInTag 0.2s ease;
+}
+
+@keyframes fadeInTag {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.loc-chip i.btn-remove-loc {
+    cursor: pointer;
+    font-size: 11px;
+    color: #93c5fd;
+    transition: color 0.15s ease;
+}
+
+.loc-chip i.btn-remove-loc:hover {
+    color: #ef4444;
+}
+
+.smart-location-box input {
+    flex: 1;
+    min-width: 180px;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    padding: 4px 6px;
+}
+
+.smart-location-box input::placeholder {
+    color: var(--text-muted);
+}
+
+
 

@@ -1201,7 +1201,8 @@ function escapeHtml(str) {
 
 let recruiterState = {
     candidates: [],
-    minScoreFilter: 0
+    minScoreFilter: 0,
+    selectedLocations: ['Dhaka', 'Pabna'] // Default multi-locations
 };
 
 // --- Mode Switcher ---
@@ -1224,24 +1225,38 @@ function initModeSwitcher() {
             modeBuilderBtn.classList.remove('active');
             if (appContainer) appContainer.style.display = 'none';
             if (recruiterWorkspace) recruiterWorkspace.style.display = 'block';
+            renderLocationChips();
         });
     }
 }
 
-// Quick Add Location Chip helper
+// Render Location Chips in UI
+function renderLocationChips() {
+    const container = document.getElementById('locationChipsContainer');
+    if (!container) return;
+    container.innerHTML = recruiterState.selectedLocations.map(loc => `
+        <span class="loc-chip">
+            <i class="fa-solid fa-location-dot"></i> ${escapeHtml(loc)}
+            <i class="fa-solid fa-xmark btn-remove-loc" onclick="removeLocationChip('${escapeHtml(loc)}')"></i>
+        </span>
+    `).join('');
+}
+
+// Add Location Tag Chip
 function addLocationChip(city) {
-    const input = document.getElementById('filterLocation');
-    if (!input) return;
-    let val = input.value.trim();
-    if (!val) {
-        input.value = city;
-    } else {
-        const cities = val.split(',').map(c => c.trim()).filter(Boolean);
-        if (!cities.includes(city)) {
-            cities.push(city);
-            input.value = cities.join(', ');
-        }
+    if (!city) return;
+    const cleanCity = city.trim();
+    if (cleanCity && !recruiterState.selectedLocations.some(l => l.toLowerCase() === cleanCity.toLowerCase())) {
+        recruiterState.selectedLocations.push(cleanCity);
+        renderLocationChips();
+        recalculateRecruiterMatches();
     }
+}
+
+// Remove Location Tag Chip
+function removeLocationChip(city) {
+    recruiterState.selectedLocations = recruiterState.selectedLocations.filter(l => l.toLowerCase() !== city.toLowerCase());
+    renderLocationChips();
     recalculateRecruiterMatches();
 }
 
@@ -1265,22 +1280,26 @@ function addCustomCriteriaChip(term) {
 // Clear / Reset Screener Function
 function clearRecruiterScreener() {
     recruiterState.candidates = [];
+    recruiterState.selectedLocations = [];
     stagedPdfFiles = [];
 
     const jdInput = document.getElementById('recruiterJD');
-    const filterLocation = document.getElementById('filterLocation');
     const filterExperience = document.getElementById('filterExperience');
-    const filterAge = document.getElementById('filterAge');
+    const filterAgeMin = document.getElementById('filterAgeMin');
+    const filterAgeMax = document.getElementById('filterAgeMax');
     const customCriteriaInput = document.getElementById('customCriteriaInput');
     const bulkPdfInput = document.getElementById('bulkPdfInput');
+    const filterLocInput = document.getElementById('filterLocationInput');
 
     if (jdInput) jdInput.value = '';
-    if (filterLocation) filterLocation.value = '';
-    if (filterExperience) filterExperience.value = '0';
-    if (filterAge) filterAge.value = 'any';
+    if (filterLocInput) filterLocInput.value = '';
+    if (filterExperience) filterExperience.value = '';
+    if (filterAgeMin) filterAgeMin.value = '';
+    if (filterAgeMax) filterAgeMax.value = '';
     if (customCriteriaInput) customCriteriaInput.value = '';
     if (bulkPdfInput) bulkPdfInput.value = '';
 
+    renderLocationChips();
     updateUploadStatusText();
     renderRecruiterLeaderboard();
 }
@@ -1291,9 +1310,11 @@ let stagedPdfFiles = [];
 // --- Initialize Recruiter Portal Listeners ---
 function initRecruiterPortal() {
     const jdInput = document.getElementById('recruiterJD');
-    const filterLocation = document.getElementById('filterLocation');
+    const filterLocInput = document.getElementById('filterLocationInput');
     const filterExperience = document.getElementById('filterExperience');
-    const filterAge = document.getElementById('filterAge');
+    const filterAgeMin = document.getElementById('filterAgeMin');
+    const filterAgeMax = document.getElementById('filterAgeMax');
+    const btnApplyAge = document.getElementById('btnApplyAge');
     const customCriteriaInput = document.getElementById('customCriteriaInput');
     const bulkPdfInput = document.getElementById('bulkPdfInput');
     const dropzone = document.getElementById('bulkUploadDropzone');
@@ -1305,12 +1326,37 @@ function initRecruiterPortal() {
     const btnCloseModal = document.getElementById('btnCloseModal');
 
     // Input listeners for real-time match recalculation
-    [jdInput, filterLocation, customCriteriaInput].forEach(elem => {
+    [jdInput, customCriteriaInput].forEach(elem => {
         if (elem) elem.addEventListener('input', () => recalculateRecruiterMatches());
     });
-    [filterExperience, filterAge].forEach(elem => {
-        if (elem) elem.addEventListener('change', () => recalculateRecruiterMatches());
+    [filterExperience, filterAgeMin, filterAgeMax].forEach(elem => {
+        if (elem) elem.addEventListener('input', () => recalculateRecruiterMatches());
     });
+
+    if (btnApplyAge) {
+        btnApplyAge.addEventListener('click', () => recalculateRecruiterMatches());
+    }
+
+    // Location tag input handler
+    if (filterLocInput) {
+        filterLocInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+                e.preventDefault();
+                const val = filterLocInput.value.replace(/,/g, '').trim();
+                if (val) {
+                    addLocationChip(val);
+                    filterLocInput.value = '';
+                }
+            }
+        });
+        filterLocInput.addEventListener('blur', () => {
+            const val = filterLocInput.value.replace(/,/g, '').trim();
+            if (val) {
+                addLocationChip(val);
+                filterLocInput.value = '';
+            }
+        });
+    }
 
     // Clear All Button Listener
     if (btnClearRecruiter) {
@@ -1416,6 +1462,9 @@ function initRecruiterPortal() {
             if (modal) modal.style.display = 'none';
         });
     }
+
+    // Render initial chips if any
+    renderLocationChips();
 }
 
 // Helper to update status text in upload dropzone
@@ -1501,24 +1550,86 @@ function parseCandidateText(rawText, fileName) {
     return { name, email, phone };
 }
 
-// --- Evaluate Candidate Match Analysis (JD + Location OR Logic + Dynamic Exp + Dynamic Age + Custom Criteria) ---
-function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '', locationText = '', expText = '', ageText = '') {
+// --- Education Qualification Hierarchy Ranks & Names ---
+const EDU_RANKS = {
+    'any': 0,
+    'class_5': 1,
+    'class_8': 2,
+    'ssc': 3,
+    'hsc': 4,
+    'diploma': 5,
+    'degree': 6,
+    'honours': 7,
+    'bsc_eng': 8,
+    'bsc': 8,
+    'masters': 9,
+    'msc_eng': 10,
+    'phd': 11
+};
+
+const EDU_NAMES = {
+    1: 'Class 5 Pass',
+    2: 'Class 8 Pass',
+    3: 'SSC Pass',
+    4: 'HSC Pass',
+    5: 'Diploma in Engineering',
+    6: 'Degree Pass',
+    7: 'Honours Pass',
+    8: 'B.Sc in Engineering',
+    9: 'Masters Pass',
+    10: 'M.Sc in Engineering',
+    11: 'Ph.D. / Doctorate'
+};
+
+// Helper to detect candidate's highest completed education level rank
+function detectCandidateEducationRank(text) {
+    const lower = text.toLowerCase();
+    
+    if (/\b(ph\.?d|doctorate|doctor\s*of\s*philosophy)\b/.test(lower)) return { rank: 11, name: 'Ph.D. / Doctorate' };
+    if (/\b(m\.?sc\s*in\s*eng|m\.?sc\s*engineering|master\s*of\s*science\s*in\s*engineering)\b/.test(lower)) return { rank: 10, name: 'M.Sc in Engineering' };
+    if (/\b(masters?|m\.?sc|m\.?a|m\.?com|post\s*graduate)\b/.test(lower)) return { rank: 9, name: 'Masters Pass' };
+    if (/\b(b\.?sc\s*in\s*eng|b\.?sc\s*engineering|b\.?e|b\.?tech|engineering\s*degree|b\.?sc)\b/.test(lower)) return { rank: 8, name: 'B.Sc in Engineering' };
+    if (/\b(honours?|honors?|b\.?a|b\.?com|b\.?b\.?a|bachelor)\b/.test(lower)) return { rank: 7, name: 'Honours Pass' };
+    if (/\b(degree\s*pass|pass\s*course|degree)\b/.test(lower)) return { rank: 6, name: 'Degree Pass' };
+    if (/\b(diploma|polytechnic)\b/.test(lower)) return { rank: 5, name: 'Diploma in Engineering' };
+    if (/\b(hsc|higher\s*secondary|12th)\b/.test(lower)) return { rank: 4, name: 'HSC Pass' };
+    if (/\b(ssc|secondary\s*school|10th|dakhil)\b/.test(lower)) return { rank: 3, name: 'SSC Pass' };
+    if (/\b(class\s*8|8\s*pass|jsc|jdc)\b/.test(lower)) return { rank: 2, name: 'Class 8 Pass' };
+    if (/\b(class\s*5|5\s*pass|psc)\b/.test(lower)) return { rank: 1, name: 'Class 5 Pass' };
+    
+    return { rank: 0, name: 'Not Specified' };
+}
+
+// --- Evaluate Candidate Match Analysis (JD + Location OR Logic + Hierarchical Education + Dynamic Exp + Dynamic Age + Custom Criteria) ---
+function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '', selectedLocations = [], expText = '', minAgeVal = null, maxAgeVal = null, filterEduVal = 'any') {
     const lowerCandidate = candidateText.toLowerCase();
     const matched = [];
     const missing = [];
 
-    // --- 1. LOCATION EVALUATION (OR LOGIC: Matches if candidate is from ANY of the specified cities) ---
-    if (locationText && locationText.trim().length > 0) {
-        const locations = locationText.split(',').map(l => l.trim().toLowerCase()).filter(Boolean);
-        const matchedLoc = locations.find(loc => lowerCandidate.includes(loc));
+    // --- 1. LOCATION EVALUATION (OR LOGIC: Matches 100% if candidate is from ANY of the specified cities) ---
+    if (selectedLocations && selectedLocations.length > 0) {
+        const matchedLoc = selectedLocations.find(loc => lowerCandidate.includes(loc.toLowerCase()));
         if (matchedLoc) {
-            matched.push(`📍 LOC: ${matchedLoc.toUpperCase()} (Matched)`);
+            matched.push(`📍 LOC: ${matchedLoc.toUpperCase()} (100% Matched)`);
         } else {
-            missing.push(`📍 LOC: (${locations.join(' OR ').toUpperCase()})`);
+            missing.push(`📍 LOC: Require (${selectedLocations.join(' OR ').toUpperCase()})`);
         }
     }
 
-    // --- 2. DYNAMIC EXPERIENCE EVALUATION ---
+    // --- 2. EDUCATION LEVEL EVALUATION (MINIMUM QUALIFICATION HIERARCHY: Equal or higher passes, lower fails) ---
+    const reqEduRank = EDU_RANKS[filterEduVal] || 0;
+    if (reqEduRank > 0) {
+        const candEdu = detectCandidateEducationRank(candidateText);
+        const reqEduName = EDU_NAMES[reqEduRank];
+
+        if (candEdu.rank >= reqEduRank) {
+            matched.push(`🎓 EDU: ${candEdu.name} (100% Pass: Required ≥${reqEduName})`);
+        } else {
+            missing.push(`🎓 EDU: ${candEdu.rank > 0 ? candEdu.name : 'Underqualified/Unspecified'} (Required ≥${reqEduName})`);
+        }
+    }
+
+    // --- 3. DYNAMIC EXPERIENCE EVALUATION ---
     if (expText && expText.trim().length > 0) {
         const requiredExpMatch = expText.match(/(\d+(?:\.\d+)?)/);
         const requiredExp = requiredExpMatch ? parseFloat(requiredExpMatch[1]) : 0;
@@ -1534,33 +1645,30 @@ function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '
         }
     }
 
-    // --- 3. DYNAMIC AGE EVALUATION ---
-    if (ageText && ageText.trim().length > 0 && ageText.toLowerCase() !== 'any') {
-        const rangeMatch = ageText.match(/(\d+)\s*[-to–\s]+\s*(\d+)/);
-        const singleMatch = ageText.match(/(\d+)/);
+    // --- 4. DYNAMIC AGE EVALUATION ---
+    const minAge = parseInt(minAgeVal) || 0;
+    const maxAge = parseInt(maxAgeVal) || 0;
 
-        let minAge = 18, maxAge = 65;
-        if (rangeMatch) {
-            minAge = parseInt(rangeMatch[1]);
-            maxAge = parseInt(rangeMatch[2]);
-        } else if (singleMatch) {
-            maxAge = parseInt(singleMatch[1]);
-        }
-
+    if (minAge > 0 || maxAge > 0) {
         const candAgeMatch = candidateText.match(/(?:age|years? old|born[:\s]+)?\b([1-6][0-9])\b/i);
+        const ageLabel = (minAge > 0 && maxAge > 0) ? `${minAge}-${maxAge}` : (minAge > 0 ? `≥${minAge}` : `≤${maxAge}`);
+
         if (candAgeMatch) {
             const candAge = parseInt(candAgeMatch[1]);
-            if (candAge >= minAge && candAge <= maxAge) {
-                matched.push(`🎂 AGE: ${candAge} Yrs (Req: ${ageText})`);
+            const isMinPass = minAge > 0 ? candAge >= minAge : true;
+            const isMaxPass = maxAge > 0 ? candAge <= maxAge : true;
+
+            if (isMinPass && isMaxPass) {
+                matched.push(`🎂 AGE: ${candAge} Yrs (Req: ${ageLabel})`);
             } else {
-                missing.push(`🎂 AGE: ${candAge} Yrs (Out of range ${ageText})`);
+                missing.push(`🎂 AGE: ${candAge} Yrs (Out of range ${ageLabel})`);
             }
         } else {
-            matched.push(`🎂 AGE: Pass (Range ${ageText})`);
+            matched.push(`🎂 AGE: Pass (${ageLabel})`);
         }
     }
 
-    // --- 4. CUSTOM ROLES & KEYWORDS EVALUATION ---
+    // --- 5. CUSTOM ROLES & KEYWORDS EVALUATION ---
     const stopWords = new Set(['and','the','with','for','you','that','this','have','from','will','are','all','our','we','or','is','in','on','at','to','a','an','of','be','by','as','looking','seeking','required','requirements','experience','years']);
     
     const customTerms = customCriteriaText
@@ -1576,7 +1684,7 @@ function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '
         }
     });
 
-    // --- 5. JD KEYWORDS EVALUATION ---
+    // --- 6. JD KEYWORDS EVALUATION ---
     const rawJdTokens = jdText.toLowerCase().match(/[a-z0-9+#.]{2,}/g) || [];
     const uniqueJdKeywords = [...new Set(rawJdTokens.filter(t => !stopWords.has(t) && t.length > 2))];
 
@@ -1590,11 +1698,12 @@ function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '
         }
     });
 
-    const hasLoc = locationText && locationText.trim().length > 0;
+    const hasLoc = selectedLocations && selectedLocations.length > 0;
+    const hasEdu = reqEduRank > 0;
     const hasExp = expText && expText.trim().length > 0;
-    const hasAge = ageText && ageText.trim().length > 0 && ageText.toLowerCase() !== 'any';
+    const hasAge = minAge > 0 || maxAge > 0;
 
-    const totalCheckPoints = (hasLoc ? 1 : 0) + (hasExp ? 1 : 0) + (hasAge ? 1 : 0) + customTerms.length + uniqueJdKeywords.length;
+    const totalCheckPoints = (hasLoc ? 1 : 0) + (hasEdu ? 1 : 0) + (hasExp ? 1 : 0) + (hasAge ? 1 : 0) + customTerms.length + uniqueJdKeywords.length;
     if (totalCheckPoints === 0) {
         return { score: 0, matchedSkills: [], missingSkills: [] };
     }
@@ -1613,13 +1722,14 @@ function evaluateCandidateAnalysis(candidateText, jdText, customCriteriaText = '
 // --- Recalculate all Candidate Scores when any filter changes ---
 function recalculateRecruiterMatches() {
     const jdText = document.getElementById('recruiterJD') ? document.getElementById('recruiterJD').value.trim() : '';
-    const locationText = document.getElementById('filterLocation') ? document.getElementById('filterLocation').value.trim() : '';
     const expText = document.getElementById('filterExperience') ? document.getElementById('filterExperience').value.trim() : '';
-    const ageText = document.getElementById('filterAge') ? document.getElementById('filterAge').value.trim() : '';
+    const minAgeVal = document.getElementById('filterAgeMin') ? document.getElementById('filterAgeMin').value : '';
+    const maxAgeVal = document.getElementById('filterAgeMax') ? document.getElementById('filterAgeMax').value : '';
+    const filterEduVal = document.getElementById('filterEducation') ? document.getElementById('filterEducation').value : 'any';
     const customCriteriaText = document.getElementById('customCriteriaInput') ? document.getElementById('customCriteriaInput').value.trim() : '';
 
     recruiterState.candidates.forEach(cand => {
-        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText, customCriteriaText, locationText, expText, ageText);
+        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText, customCriteriaText, recruiterState.selectedLocations, expText, minAgeVal, maxAgeVal, filterEduVal);
         cand.score = analysis.score;
         cand.matchedSkills = analysis.matchedSkills;
         cand.missingSkills = analysis.missingSkills;
@@ -1766,32 +1876,128 @@ function openCandidateModal(candId) {
         rawContent.textContent = cand.fullText || "No raw text extracted.";
     }
 
+    const filterEduSelect = document.getElementById('filterEducation');
+    if (filterEduSelect) {
+        filterEduSelect.addEventListener('change', () => recalculateRecruiterMatches());
+    }
+
     if (modal) modal.style.display = 'flex';
+}
+
+// Helper to update status text in upload dropzone
+function updateUploadStatusText() {
+    const statusText = document.getElementById('upload-status-text');
+    if (!statusText) return;
+    if (stagedPdfFiles.length > 0) {
+        statusText.innerHTML = `<strong style="color:#10b981;"><i class="fa-solid fa-file-circle-check"></i> ${stagedPdfFiles.length} PDF Resume(s) Ready.</strong> Click "Start Screening Process" below.`;
+    } else {
+        statusText.textContent = "Select multiple PDF resumes at once.";
+    }
+}
+
+// --- Process Bulk Uploaded PDF Files ---
+async function processBulkPdfFiles(fileList) {
+    const jdText = document.getElementById('recruiterJD').value.trim();
+
+    // Configure PDF.js worker
+    if (typeof pdfjsLib !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    for (let i = 0; i < fileList.length; i++) {
+        const file = fileList[i];
+        if (file.type !== 'application/pdf' && !file.name.endsWith('.pdf')) continue;
+
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+            let fullText = '';
+
+            for (let p = 1; p <= pdfDoc.numPages; p++) {
+                const page = await pdfDoc.getPage(p);
+                const tokenContent = await page.getTextContent();
+                const pageText = tokenContent.items.map(item => item.str).join(' ');
+                fullText += pageText + '\n';
+            }
+
+            // Extract candidate info
+            const parsedInfo = parseCandidateText(fullText, file.name);
+            const matchAnalysis = evaluateCandidateAnalysis(fullText, jdText);
+
+            recruiterState.candidates.push({
+                id: Date.now() + Math.random(),
+                name: parsedInfo.name,
+                fileName: file.name,
+                email: parsedInfo.email,
+                phone: parsedInfo.phone,
+                fullText: fullText,
+                score: matchAnalysis.score,
+                matchedSkills: matchAnalysis.matchedSkills,
+                missingSkills: matchAnalysis.missingSkills
+            });
+
+        } catch (err) {
+            console.error("Error parsing PDF resume:", file.name, err);
+        }
+    }
+
+    recalculateRecruiterMatches();
+}
+
+// --- Parse Candidate Info from Raw Text ---
+function parseCandidateText(rawText, fileName) {
+    const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+    let name = fileName.replace(/\.pdf$/i, '').replace(/[-_]/g, ' ');
+    
+    if (lines.length > 0) {
+        const firstLine = lines[0];
+        if (firstLine.length < 40 && !firstLine.includes('@') && !/\d/.test(firstLine)) {
+            name = firstLine;
+        }
+    }
+
+    // Regex for Email
+    const emailMatch = rawText.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+    const email = emailMatch ? emailMatch[0] : 'No Email Found';
+
+    // Regex for Phone
+    const phoneMatch = rawText.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4,6}/);
+    const phone = phoneMatch ? phoneMatch[0] : 'No Phone Found';
+
+    return { name, email, phone };
 }
 
 // --- Load 5 Realistic Demo Candidate Resumes ---
 function loadDemoRecruiterCandidates() {
     const jdInput = document.getElementById('recruiterJD');
-    const filterLocation = document.getElementById('filterLocation');
     const filterExperience = document.getElementById('filterExperience');
+    const filterAgeMin = document.getElementById('filterAgeMin');
+    const filterAgeMax = document.getElementById('filterAgeMax');
+    const filterEducation = document.getElementById('filterEducation');
     const customCriteriaInput = document.getElementById('customCriteriaInput');
 
     if (jdInput && (!jdInput.value || jdInput.value.trim().length === 0)) {
         jdInput.value = `We are hiring a Senior Web Developer & Software Engineer proficient in React, Node.js, Python, PostgreSQL, Docker, AWS, REST APIs, and Agile methodologies with at least 3 years experience.`;
     }
 
-    if (filterLocation && (!filterLocation.value || filterLocation.value.trim().length === 0)) {
-        filterLocation.value = `Dhaka, Pabna`;
+    if (!recruiterState.selectedLocations || recruiterState.selectedLocations.length === 0) {
+        recruiterState.selectedLocations = ['Dhaka', 'Pabna'];
     }
+    renderLocationChips();
+
+    if (filterAgeMin && !filterAgeMin.value) filterAgeMin.value = '18';
+    if (filterAgeMax && !filterAgeMax.value) filterAgeMax.value = '35';
+    if (filterEducation && (!filterEducation.value || filterEducation.value === 'any')) filterEducation.value = 'class_8';
 
     if (customCriteriaInput && (!customCriteriaInput.value || customCriteriaInput.value.trim().length === 0)) {
-        customCriteriaInput.value = `Web Developer, B.Sc`;
+        customCriteriaInput.value = `Web Developer`;
     }
 
     const jdText = jdInput ? jdInput.value : '';
-    const locationText = filterLocation ? filterLocation.value : '';
     const minExpYears = filterExperience ? parseFloat(filterExperience.value) || 0 : 0;
-    const ageRangeStr = document.getElementById('filterAge') ? document.getElementById('filterAge').value : 'any';
+    const minAgeVal = filterAgeMin ? filterAgeMin.value : '';
+    const maxAgeVal = filterAgeMax ? filterAgeMax.value : '';
+    const filterEduVal = filterEducation ? filterEducation.value : 'any';
     const customCriteriaText = customCriteriaInput ? customCriteriaInput.value : '';
 
     const demoCVs = [
@@ -1801,7 +2007,7 @@ function loadDemoRecruiterCandidates() {
             fileName: 'Tanvir_Hossain_Senior_FullStack.pdf',
             email: 'tanvir.dev@example.com',
             phone: '+880 1712-345678',
-            fullText: `Tanvir Hossain - Senior Web Developer & Software Engineer\nLocation: Pabna, Bangladesh | Degree: B.Sc in CSE\nEmail: tanvir.dev@example.com | Phone: +880 1712-345678\nSkills: React, Node.js, Python, PostgreSQL, Docker, AWS, REST APIs, GraphQL, Microservices, Agile, CI/CD, JavaScript, TypeScript, Redis.\nExperience: 5+ Years Exp building scalable SaaS platforms. Web Developer and System Architect. Reduced database query latency by 45% using PostgreSQL indexing.`
+            fullText: `Tanvir Hossain - Senior Web Developer & Software Engineer\nLocation: Pabna, Bangladesh | Education: B.Sc in CSE\nEmail: tanvir.dev@example.com | Phone: +880 1712-345678\nSkills: React, Node.js, Python, PostgreSQL, Docker, AWS, REST APIs, GraphQL, Microservices, Agile, CI/CD, JavaScript, TypeScript, Redis.\nExperience: 5+ Years Exp building scalable SaaS platforms. Web Developer and System Architect. Reduced database query latency by 45% using PostgreSQL indexing.`
         },
         {
             id: 'demo-2',
@@ -1809,7 +2015,7 @@ function loadDemoRecruiterCandidates() {
             fileName: 'Sharmin_Akter_Frontend_Dev.pdf',
             email: 'sharmin.frontend@example.com',
             phone: '+880 1819-876543',
-            fullText: `Sharmin Akter - Web Developer & Frontend Engineer\nLocation: Dhaka, Bangladesh | Degree: B.Sc\nEmail: sharmin.frontend@example.com | Phone: +880 1819-876543\nSkills: React.js, JavaScript, HTML5, CSS3, Tailwind CSS, REST APIs, Git, Figma, Redux.\nExperience: 3+ Years Exp building responsive web interfaces and user portals.`
+            fullText: `Sharmin Akter - Web Developer & Frontend Engineer\nLocation: Dhaka, Bangladesh | Education: Honours Pass in Accounting (BBA)\nEmail: sharmin.frontend@example.com | Phone: +880 1819-876543\nSkills: React.js, JavaScript, HTML5, CSS3, Tailwind CSS, REST APIs, Git, Figma, Redux.\nExperience: 3+ Years Exp building responsive web interfaces and user portals.`
         },
         {
             id: 'demo-3',
@@ -1817,7 +2023,7 @@ function loadDemoRecruiterCandidates() {
             fileName: 'Mahmudur_Rahman_Network_Eng.pdf',
             email: 'mahmud.data@example.com',
             phone: '+880 1911-223344',
-            fullText: `Mahmudur Rahman - Network Eng & Infrastructure Specialist\nLocation: Pabna, Bangladesh | Degree: B.Sc\nEmail: mahmud.data@example.com | Phone: +880 1911-223344\nSkills: Network Eng, Router Configuration, Python, PostgreSQL, MongoDB, Docker, AWS, Cisco, Linux, SQL.\nExperience: 4 Years Exp configuring corporate network infrastructure and server databases.`
+            fullText: `Mahmudur Rahman - Network Eng & Infrastructure Specialist\nLocation: Pabna, Bangladesh | Education: Diploma in Engineering (Polytechnic Institute)\nEmail: mahmud.data@example.com | Phone: +880 1911-223344\nSkills: Network Eng, Router Configuration, Python, PostgreSQL, MongoDB, Docker, AWS, Cisco, Linux, SQL.\nExperience: 4 Years Exp configuring corporate network infrastructure and server databases.`
         },
         {
             id: 'demo-4',
@@ -1825,7 +2031,7 @@ function loadDemoRecruiterCandidates() {
             fileName: 'Anisur_Rahman_Technician.pdf',
             email: 'anisur.cloud@example.com',
             phone: '+880 1677-554433',
-            fullText: `Anisur Rahman - Hardware Technician & Cloud Specialist\nLocation: Dhaka, Bangladesh\nEmail: anisur.cloud@example.com | Phone: +880 1677-554433\nSkills: Hardware Technician, Server Maintenance, AWS, Docker, Kubernetes, Linux, Troubleshooting.\nExperience: 6 Years Exp managing IT equipment and server room operations.`
+            fullText: `Anisur Rahman - Hardware Technician & Cloud Specialist\nLocation: Dhaka, Bangladesh | Education: Class 8 Pass (JSC Certificate)\nEmail: anisur.cloud@example.com | Phone: +880 1677-554433\nSkills: Hardware Technician, Server Maintenance, AWS, Docker, Kubernetes, Linux, Troubleshooting.\nExperience: 6 Years Exp managing IT equipment and server room operations.`
         },
         {
             id: 'demo-5',
@@ -1833,12 +2039,12 @@ function loadDemoRecruiterCandidates() {
             fileName: 'Nadia_Islam_QA_Tester.pdf',
             email: 'nadia.qa@example.com',
             phone: '+880 1522-998877',
-            fullText: `Nadia Islam - Junior QA Automation Engineer\nLocation: Rajshahi, Bangladesh\nEmail: nadia.qa@example.com | Phone: +880 1522-998877\nSkills: Manual Testing, Selenium, JavaScript, Postman, Bug Tracking, JIRA.\nExperience: 1.5 Years Exp creating automated test suites.`
+            fullText: `Nadia Islam - Junior QA Automation Engineer\nLocation: Rajshahi, Bangladesh | Education: Class 5 Pass (PSC Primary Education)\nEmail: nadia.qa@example.com | Phone: +880 1522-998877\nSkills: Manual Testing, Selenium, JavaScript, Postman, Bug Tracking, JIRA.\nExperience: 1.5 Years Exp creating automated test suites.`
         }
     ];
 
     recruiterState.candidates = demoCVs.map(cand => {
-        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText, customCriteriaText, locationText, minExpYears, ageRangeStr);
+        const analysis = evaluateCandidateAnalysis(cand.fullText, jdText, customCriteriaText, recruiterState.selectedLocations, minExpYears, minAgeVal, maxAgeVal, filterEduVal);
         return {
             ...cand,
             score: analysis.score,
