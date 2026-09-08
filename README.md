@@ -11,6 +11,15 @@ Built for developers, job seekers, and students who want to build ATS-optimized 
 
 ---
 
+## 🎬 Live Interactive Demo
+
+![Smart Resume Builder & Company ATS Screener Demo Banner](assets/demo.webp)
+
+> [!TIP]
+> **Try both modes**: Switch seamlessly between **Candidate Resume Builder** and **Company ATS Candidate Screener** with real-time scoring, multi-location OR logic, age limit range filters, and hierarchical education matching.
+
+---
+
 ## ✨ Features
 
 - ⚡ **Dual-Mode System**:
