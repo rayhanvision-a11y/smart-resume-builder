@@ -1212,7 +1212,7 @@ input[type="color"]::-webkit-color-swatch {
 
 .recruiter-grid {
     display: grid;
-    grid-template-columns: 460px 1fr;
+    grid-template-columns: 540px 1fr;
     gap: 24px;
 }
 
@@ -1693,9 +1693,132 @@ input[type="color"]::-webkit-color-swatch {
     padding: 4px 6px;
 }
 
-.smart-location-box input::placeholder {
-    color: var(--text-muted);
+/* 3. Executive UI Polish for Recruiter Filter Card */
+.card-title-header h3 {
+    font-size: 17px;
+    font-weight: 700;
+    font-family: 'Outfit', sans-serif;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
+
+.card-title-header .sub-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.filter-section-card {
+    background: rgba(15, 23, 42, 0.45);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 18px;
+    transition: border-color 0.2s ease;
+}
+
+.filter-section-card:hover {
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.filter-grid-2col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-items: end;
+}
+
+@media (max-width: 600px) {
+    .filter-grid-2col {
+        grid-template-columns: 1fr;
+    }
+}
+
+.form-label-bold {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-primary);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.badge-or {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.form-select-custom,
+.form-input-custom {
+    width: 100%;
+    height: 42px;
+    padding: 0 12px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.form-select-custom:focus,
+.form-input-custom:focus {
+    border-color: var(--accent-blue);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.form-textarea-custom {
+    width: 100%;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 13px;
+    font-family: inherit;
+    padding: 10px 12px;
+    resize: vertical;
+    transition: all 0.2s ease;
+}
+
+.form-textarea-custom:focus {
+    border-color: var(--accent-blue);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.margin-top-xs {
+    margin-top: 6px;
+}
+
+/* Age Range Picker Height Match */
+.age-range-picker {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.age-range-picker input[type="number"] {
+    flex: 1;
+    height: 42px;
+}
+
+.btn-age-apply {
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+}
+
 
 
 

@@ -562,28 +562,28 @@
 
         <div class="recruiter-grid">
             <!-- Left Pane: Job Description & Structured Criteria & Bulk PDF Uploader -->
+            <!-- Left Pane: Job Description & Structured Criteria & Bulk PDF Uploader -->
             <div class="recruiter-card">
-                <h3><i class="fa-solid fa-sliders"></i> 1. Job Description & Structured Criteria</h3>
-                
-                <div class="form-group margin-top">
-                    <label for="recruiterJD">Job Requirements & Technical Stack</label>
-                    <textarea id="recruiterJD" rows="4" placeholder="Paste job requirements here... e.g. We are hiring a Web Developer proficient in React, Node.js, Python, PostgreSQL..."></textarea>
+                <div class="card-title-header">
+                    <h3><i class="fa-solid fa-sliders color-blue"></i> Candidate Target Criteria & Requirements</h3>
+                    <p class="sub-desc">Define requirements to automatically screen and rank candidates.</p>
                 </div>
-
-                <!-- Structured Filters Grid -->
-                <div class="form-grid margin-top" style="gap: 12px;">
+                
+                <!-- Filter Section 1: Candidate Requirements Grid -->
+                <div class="filter-section-card margin-top">
+                    <!-- Row 1: Location Tag Selector -->
                     <div class="form-group full-width">
-                        <label for="filterLocationInput">
-                            <i class="fa-solid fa-location-dot color-blue"></i> Preferred Location(s) (OR Logic: Matches ANY selected city)
+                        <label for="filterLocationInput" class="form-label-bold">
+                            <i class="fa-solid fa-location-dot color-blue"></i> Preferred Location(s) <span class="badge-or">OR Logic</span>
                         </label>
                         <div class="smart-location-box" id="smartLocationWrapper">
                             <div class="location-chips-container" id="locationChipsContainer">
-                                <!-- Dynamic location chips rendered here -->
+                                <!-- Dynamic location chips -->
                             </div>
-                            <input type="text" id="filterLocationInput" placeholder="Type city (e.g. Dhaka, Pabna) and press Enter or comma...">
+                            <input type="text" id="filterLocationInput" placeholder="Type city (e.g. Dhaka, Pabna) and press Enter...">
                         </div>
-                        <div class="criteria-helper margin-top-sm">
-                            <span class="criteria-label">Quick Add Popular Cities:</span>
+                        <div class="criteria-helper margin-top-xs">
+                            <span class="criteria-label">Quick Add Cities:</span>
                             <div class="criteria-chips">
                                 <span class="chip-item" onclick="addLocationChip('Dhaka')">+ Dhaka</span>
                                 <span class="chip-item" onclick="addLocationChip('Pabna')">+ Pabna</span>
@@ -596,55 +596,77 @@
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label for="filterEducation"><i class="fa-solid fa-graduation-cap color-blue"></i> Min. Education Level</label>
-                        <select id="filterEducation" style="background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-primary); padding: 8px 12px; border-radius: 8px; width: 100%; font-size: 13px;">
-                            <option value="any">Any Education Level</option>
-                            <option value="class_5">Class 5 Pass</option>
-                            <option value="class_8">Class 8 Pass</option>
-                            <option value="ssc">SSC Pass</option>
-                            <option value="hsc">HSC Pass</option>
-                            <option value="diploma">Diploma in Engineering</option>
-                            <option value="degree">Degree Pass</option>
-                            <option value="honours">Honours Pass</option>
-                            <option value="bsc_eng">B.Sc in Engineering</option>
-                            <option value="masters">Masters Pass</option>
-                            <option value="msc_eng">M.Sc in Engineering</option>
-                            <option value="phd">Ph.D. / Doctorate</option>
-                        </select>
-                    </div>
+                    <!-- 2-Column Grid: Education & Experience -->
+                    <div class="filter-grid-2col margin-top">
+                        <div class="form-group">
+                            <label for="filterEducation" class="form-label-bold">
+                                <i class="fa-solid fa-graduation-cap color-blue"></i> Min. Education
+                            </label>
+                            <select id="filterEducation" class="form-select-custom">
+                                <option value="any">Any Education Level</option>
+                                <option value="class_5">Class 5 Pass</option>
+                                <option value="class_8">Class 8 Pass</option>
+                                <option value="ssc">SSC Pass</option>
+                                <option value="hsc">HSC Pass</option>
+                                <option value="diploma">Diploma in Engineering</option>
+                                <option value="degree">Degree Pass</option>
+                                <option value="honours">Honours Pass</option>
+                                <option value="bsc_eng">B.Sc in Engineering</option>
+                                <option value="masters">Masters Pass</option>
+                                <option value="msc_eng">M.Sc in Engineering</option>
+                                <option value="phd">Ph.D. / Doctorate</option>
+                            </select>
+                        </div>
 
-                    <div class="form-group">
-                        <label for="filterExperience"><i class="fa-solid fa-briefcase color-warning"></i> Min. Experience (Dynamic)</label>
-                        <input type="text" id="filterExperience" placeholder="e.g. 1, 3, 5+ Years (Type any value)">
-                    </div>
-
-                    <div class="form-group">
-                        <label for="filterAgeMin"><i class="fa-solid fa-user-clock color-success"></i> Age Limit / Range</label>
-                        <div class="age-range-picker">
-                            <input type="number" id="filterAgeMin" placeholder="Min" min="15" max="75">
-                            <span class="age-separator">-</span>
-                            <input type="number" id="filterAgeMax" placeholder="Max" min="15" max="75">
-                            <button type="button" id="btnApplyAge" class="btn-age-apply" title="Apply Age Range">
-                                <i class="fa-solid fa-caret-right"></i>
-                            </button>
+                        <div class="form-group">
+                            <label for="filterExperience" class="form-label-bold">
+                                <i class="fa-solid fa-briefcase color-warning"></i> Min. Experience
+                            </label>
+                            <input type="text" id="filterExperience" class="form-input-custom" placeholder="e.g. 1, 3, 5+ Years">
                         </div>
                     </div>
 
-                    <div class="form-group full-width">
-                        <label for="customCriteriaInput">
-                            <i class="fa-solid fa-tags color-blue"></i> Specific Roles & Keywords
-                        </label>
-                        <input type="text" id="customCriteriaInput" placeholder="e.g. Web Developer, Network Eng, Technician, B.Sc">
-                        <div class="criteria-helper margin-top-sm">
-                            <span class="criteria-label">Quick Add Filter Chips:</span>
-                            <div class="criteria-chips">
-                                <span class="chip-item" onclick="addCustomCriteriaChip('Web Developer')">+ Web Developer</span>
-                                <span class="chip-item" onclick="addCustomCriteriaChip('Network Eng')">+ Network Eng</span>
-                                <span class="chip-item" onclick="addCustomCriteriaChip('Technician')">+ Technician</span>
-                                <span class="chip-item" onclick="addCustomCriteriaChip('B.Sc')">+ B.Sc</span>
+                    <!-- 2-Column Grid: Age Range & Roles -->
+                    <div class="filter-grid-2col margin-top">
+                        <div class="form-group">
+                            <label for="filterAgeMin" class="form-label-bold">
+                                <i class="fa-solid fa-user-clock color-success"></i> Age Limit / Range
+                            </label>
+                            <div class="age-range-picker">
+                                <input type="number" id="filterAgeMin" placeholder="Min" min="15" max="75">
+                                <span class="age-separator">-</span>
+                                <input type="number" id="filterAgeMax" placeholder="Max" min="15" max="75">
+                                <button type="button" id="btnApplyAge" class="btn-age-apply" title="Apply Age Range">
+                                    <i class="fa-solid fa-caret-right"></i>
+                                </button>
                             </div>
                         </div>
+
+                        <div class="form-group">
+                            <label for="customCriteriaInput" class="form-label-bold">
+                                <i class="fa-solid fa-tags color-purple"></i> Target Roles / Keywords
+                            </label>
+                            <input type="text" id="customCriteriaInput" class="form-input-custom" placeholder="e.g. Web Developer, B.Sc">
+                        </div>
+                    </div>
+
+                    <div class="criteria-helper margin-top-xs">
+                        <span class="criteria-label">Quick Add Role Chips:</span>
+                        <div class="criteria-chips">
+                            <span class="chip-item" onclick="addCustomCriteriaChip('Web Developer')">+ Web Developer</span>
+                            <span class="chip-item" onclick="addCustomCriteriaChip('Network Eng')">+ Network Eng</span>
+                            <span class="chip-item" onclick="addCustomCriteriaChip('Technician')">+ Technician</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Section 2: Job Description Textarea -->
+                <div class="filter-section-card margin-top">
+                    <div class="form-group">
+                        <label for="recruiterJD" class="form-label-bold">
+                            <i class="fa-solid fa-file-alt color-blue"></i> Job Requirements & Technical Stack (Paste Below)
+                        </label>
+                        <textarea id="recruiterJD" rows="3" class="form-textarea-custom" placeholder="Paste job requirements here... e.g. We are hiring a Web Developer proficient in React, Node.js, Python, PostgreSQL..."></textarea>
                     </div>
                 </div>
 
